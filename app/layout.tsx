@@ -31,14 +31,14 @@ export default function RootLayout({
             enableSystem
             disableTransitionOnChange
           >
-            <main className="min-h-screen flex flex-col items-center">
-              <div className="flex-1 w-full flex flex-col gap-20 items-center">
+            <main className="min-h-screen flex flex-col items-center w-full">
+              <div className="flex-1 w-full flex flex-col items-center">
                 <nav className="w-full flex justify-center border-b border-b-foreground/10 h-16">
                   <div className="w-full max-w-7xl flex justify-between items-center p-3 px-5 text-sm">
                     {!hasEnvVars ? <EnvVarWarning /> : <Header />}
                   </div>
                 </nav>
-                <div className="flex flex-col gap-20 max-w-7xl p-5">
+                <div className="flex flex-col w-full">
                   {children}
                 </div>
 

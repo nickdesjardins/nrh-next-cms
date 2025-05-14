@@ -11,11 +11,11 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
 
 const LoadingSpinner = () => (
-  <div className="flex justify-center items-center h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+  <div className="flex justify-center items-center h-full w-full py-20">
     <div className="relative">
-      <div className="h-24 w-24 rounded-full border-t-4 border-b-4 border-primary animate-spin"></div>
+      <div className="h-16 w-16 rounded-full border-t-4 border-b-4 border-primary animate-spin"></div>
       <div className="absolute inset-0 flex items-center justify-center">
-        <div className="h-16 w-16 rounded-full bg-background"></div>
+        <div className="h-10 w-10 rounded-full bg-background"></div>
       </div>
     </div>
   </div>
@@ -68,6 +68,17 @@ export default function CmsLayout({ children }: { children: ReactNode }) {
     }
   }, [user, role, isLoading, router, isAdmin, isWriter])
 
+  // Override parent layout constraints
+  useEffect(() => {
+    // Find the parent container with max-width constraint
+    const parentContainer = document.querySelector(".max-w-7xl")
+    if (parentContainer) {
+      // Remove the max-width constraint and adjust padding
+      parentContainer.classList.remove("max-w-7xl", "p-5")
+      parentContainer.classList.add("w-full", "p-0")
+    }
+  }, [])
+
   if (isLoading) {
     return <LoadingSpinner />
   }
@@ -89,30 +100,30 @@ export default function CmsLayout({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="flex min-h-screen w-full bg-slate-50 dark:bg-slate-900">
+    <div className="w-full flex flex-col md:flex-row">
       {/* Mobile sidebar toggle */}
-      <div className="fixed top-4 left-4 z-50 md:hidden">
+      <div className="fixed bottom-4 left-4 z-[100] md:hidden">
         <Button
           variant="outline"
           size="icon"
           onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="bg-white shadow-md dark:bg-slate-800"
+          className="bg-white shadow-md dark:bg-slate-800 rounded-full h-12 w-12"
         >
-          <Menu className="h-5 w-5" />
+          {sidebarOpen ? <ChevronRight className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </Button>
       </div>
 
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-40 w-64 bg-white shadow-lg transition-transform duration-300 ease-in-out dark:bg-slate-800 dark:border-r dark:border-slate-700",
+          "fixed md:sticky top-16 left-0 z-40 h-[calc(100vh-4rem)] w-64 bg-white shadow-lg transition-transform duration-300 ease-in-out dark:bg-slate-800 dark:border-r dark:border-slate-700",
           sidebarOpen ? "translate-x-0" : "-translate-x-full",
           "md:translate-x-0",
         )}
       >
         <div className="flex flex-col h-full">
           {/* Sidebar header */}
-          <div className="p-4">
+          <div className="p-4 h-16">
             <div className="flex items-center gap-2 px-2">
               <div className="h-8 w-8 rounded-md bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center text-white font-bold">
                 CMS
@@ -194,11 +205,11 @@ export default function CmsLayout({ children }: { children: ReactNode }) {
       </aside>
 
       {/* Main content */}
-      <main className={cn("flex-1 transition-all duration-300 ease-in-out", sidebarOpen ? "md:ml-64" : "ml-0")}>
-        {/* Header */}
-        <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-slate-200 dark:bg-slate-800/80 dark:border-slate-700">
+      <div className={cn("flex-1 transition-all duration-300 ease-in-out w-full", sidebarOpen ? "md:ml-0" : "ml-0")}>
+        {/* Page header */}
+        <div className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 mb-6">
           <div className="flex items-center justify-between h-16 px-6">
-            <h1 className="text-xl font-semibold text-slate-800 dark:text-slate-200">
+            <h1 className="text-lg font-semibold text-slate-800 dark:text-slate-200">
               {pathname.includes("/dashboard")
                 ? "Dashboard"
                 : pathname.includes("/pages")
@@ -218,13 +229,11 @@ export default function CmsLayout({ children }: { children: ReactNode }) {
               <Button size="sm">New Content</Button>
             </div>
           </div>
-        </header>
+        </div>
 
         {/* Page content */}
-        <div className="p-6">
-          <div className="max-w-7xl mx-auto">{children}</div>
-        </div>
-      </main>
+        <div className="px-6 pb-6 w-full">{children}</div>
+      </div>
 
       {/* Overlay for mobile sidebar */}
       {sidebarOpen && (
