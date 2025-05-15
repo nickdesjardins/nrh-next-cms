@@ -23,12 +23,11 @@ export interface Language {
 export type PageStatus = 'draft' | 'published' | 'archived';
 
 // --- Block Type Definitions ---
-export const availableBlockTypes = ["text", "heading", "image", "button"] as const; // Add more as needed
+export const availableBlockTypes = ["text", "heading", "image", "button"] as const;
 export type BlockType = (typeof availableBlockTypes)[number];
 
-// Content structure for each block type
 export interface TextBlockContent {
-  html_content: string; // For rich text, or simple text
+  html_content: string;
 }
 
 export interface HeadingBlockContent {
@@ -37,7 +36,8 @@ export interface HeadingBlockContent {
 }
 
 export interface ImageBlockContent {
-  media_id: string | null; // UUID of the media item
+  media_id: string | null;    // UUID of the media item from the 'media' table
+  object_key?: string | null; // The actual R2 object key (e.g., "uploads/image.png")
   alt_text?: string;
   caption?: string;
 }
@@ -45,31 +45,28 @@ export interface ImageBlockContent {
 export interface ButtonBlockContent {
   text: string;
   url: string;
-  variant?: 'default' | 'outline' | 'secondary' | 'ghost' | 'link'; // Example variants
+  variant?: 'default' | 'outline' | 'secondary' | 'ghost' | 'link';
   size?: 'default' | 'sm' | 'lg';
 }
 
-// Discriminated union for block content for type safety
-export type BlockContent =
+export type SpecificBlockContent = // Renamed from BlockContent to avoid conflict with Block.content
   | ({ type: "text" } & TextBlockContent)
   | ({ type: "heading" } & HeadingBlockContent)
   | ({ type: "image" } & ImageBlockContent)
   | ({ type: "button" } & ButtonBlockContent);
-  // Add other block content types here
 
 export interface Block {
-  id: number; // bigint
-  page_id?: number | null; // bigint
-  post_id?: number | null; // bigint
-  language_id: number; // bigint
-  block_type: BlockType; // Use the defined BlockType
-  content: any; // jsonb. Ideally, this would be BlockContent, but Supabase client might return it as `any` initially. We'll cast it.
+  id: number;
+  page_id?: number | null;
+  post_id?: number | null;
+  language_id: number;
+  block_type: BlockType;
+  content: Partial<ImageBlockContent> | Partial<TextBlockContent> | Partial<HeadingBlockContent> | Partial<ButtonBlockContent> | any; // Store specific content structure
   order: number;
   created_at: string;
   updated_at: string;
 }
 // --- End Block Type Definitions ---
-
 
 export interface Page {
   id: number;
@@ -101,11 +98,11 @@ export interface Post {
   blocks?: Block[]; // For fetching blocks along with the post
 }
 
-export interface Media {
+export interface Media { // Ensure this is fully defined as per your schema
   id: string; // uuid
   uploader_id?: string | null;
   file_name: string;
-  object_key: string;
+  object_key: string; // This is crucial
   file_type?: string | null;
   size_bytes?: number | null;
   description?: string | null;
