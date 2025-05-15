@@ -4,9 +4,8 @@
 import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import type { Post, PageStatus } from "@/utils/supabase/types"; // Using manually defined types
+import type { Post, PageStatus, Language } from "@/utils/supabase/types";
 
-// Type for insert and update for Posts
 type UpsertPostPayload = {
   language_id: number;
   author_id: string | null;
@@ -14,7 +13,7 @@ type UpsertPostPayload = {
   slug: string;
   excerpt?: string | null;
   status: PageStatus;
-  published_at?: string | null; // Expecting ISO string or null
+  published_at?: string | null;
   meta_title?: string | null;
   meta_description?: string | null;
 };
@@ -33,7 +32,7 @@ export async function createPost(formData: FormData) {
     language_id: parseInt(formData.get("language_id") as string, 10),
     status: formData.get("status") as PageStatus,
     excerpt: formData.get("excerpt") as string || null,
-    published_at: formData.get("published_at") as string || null, // Handle empty string as null
+    published_at: formData.get("published_at") as string || null,
     meta_title: formData.get("meta_title") as string || null,
     meta_description: formData.get("meta_description") as string || null,
   };
@@ -42,19 +41,15 @@ export async function createPost(formData: FormData) {
     return { error: "Missing required fields: title, slug, language, or status." };
   }
 
-  // Validate or parse published_at if it's not empty
   let publishedAtISO: string | null = null;
   if (rawFormData.published_at) {
     const parsedDate = new Date(rawFormData.published_at);
     if (!isNaN(parsedDate.getTime())) {
       publishedAtISO = parsedDate.toISOString();
     } else {
-      // return { error: "Invalid 'Published At' date format. Please use YYYY-MM-DDTHH:MM." };
-      // For now, we'll allow it to pass and let DB handle it or store as is if not strictly typed in DB
       publishedAtISO = rawFormData.published_at;
     }
   }
-
 
   const postData: UpsertPostPayload = {
     ...rawFormData,
@@ -62,26 +57,68 @@ export async function createPost(formData: FormData) {
     author_id: user.id,
   };
 
-  const { data, error } = await supabase
+  const { data: newPost, error: createError } = await supabase
     .from("posts")
     .insert(postData)
     .select()
     .single();
 
-  if (error) {
-    console.error("Error creating post:", error);
-    return { error: `Failed to create post: ${error.message}` };
+  if (createError) {
+    console.error("Error creating post:", createError);
+    return { error: `Failed to create post: ${createError.message}` };
   }
 
+  let successMessage = "Post created successfully.";
+
+  // --- Auto-create localized versions ---
+  if (newPost) {
+    const { data: languages, error: langError } = await supabase
+      .from("languages")
+      .select("id, code")
+      .neq("id", newPost.language_id);
+
+    if (langError) {
+      console.error("Error fetching other languages for post auto-creation:", langError);
+    } else if (languages && languages.length > 0) {
+      let placeholderCreations = 0;
+      for (const lang of languages) {
+        const placeholderPostData: UpsertPostPayload = {
+          ...postData, // Use original data as a base
+          language_id: lang.id,
+          title: `[${lang.code.toUpperCase()}] ${newPost.title}`,
+          status: 'draft',
+          published_at: null, // Drafts shouldn't have a publish date set yet
+          excerpt: `[${lang.code.toUpperCase()}] ${newPost.excerpt || ''}`,
+          meta_title: null,
+          meta_description: null,
+        };
+        const { error: placeholderError } = await supabase
+          .from("posts")
+          .insert(placeholderPostData);
+
+        if (placeholderError) {
+          console.error(`Error auto-creating post for language ${lang.code}:`, placeholderError);
+        } else {
+          placeholderCreations++;
+        }
+      }
+      if (placeholderCreations > 0) {
+        successMessage += ` ${placeholderCreations} placeholder version(s) also created.`;
+      }
+    }
+  }
+  // --- End auto-create ---
+
   revalidatePath("/cms/posts");
-  if (data?.id) {
-    revalidatePath(`/cms/posts/${data.id}/edit`);
-    redirect(`/cms/posts/${data.id}/edit?success=Post created successfully`);
+  if (newPost?.id) {
+    revalidatePath(`/cms/posts/${newPost.id}/edit`);
+    redirect(`/cms/posts/${newPost.id}/edit?success=${encodeURIComponent(successMessage)}`);
   } else {
-    redirect(`/cms/posts?success=Post created successfully`);
+    redirect(`/cms/posts?success=${encodeURIComponent(successMessage)}`);
   }
 }
 
+// updatePost and deletePost actions remain the same
 export async function updatePost(postId: number, formData: FormData) {
   const supabase = createClient();
 
@@ -111,11 +148,11 @@ export async function updatePost(postId: number, formData: FormData) {
     if (!isNaN(parsedDate.getTime())) {
       publishedAtISO = parsedDate.toISOString();
     } else {
-      publishedAtISO = rawFormData.published_at; // Pass as is if not parsable by JS Date
+      publishedAtISO = rawFormData.published_at;
     }
   }
 
-  const postData: Partial<UpsertPostPayload> = {
+  const postUpdateData: Partial<UpsertPostPayload> = {
     title: rawFormData.title,
     slug: rawFormData.slug,
     language_id: rawFormData.language_id,
@@ -128,7 +165,7 @@ export async function updatePost(postId: number, formData: FormData) {
 
   const { error } = await supabase
     .from("posts")
-    .update(postData)
+    .update(postUpdateData)
     .eq("id", postId);
 
   if (error) {

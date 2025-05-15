@@ -4,13 +4,11 @@
 import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import type { PageStatus } from "@/utils/supabase/types"; // Using manually defined types for now
+import type { Page, PageStatus, Language } from "@/utils/supabase/types";
 
-// Type for insert and update, omitting auto-generated fields
-// Ideally, this would come from generated Supabase types: Database['public']['Tables']['pages']['Insert'] / ['Update']
 type UpsertPagePayload = {
   language_id: number;
-  author_id: string | null; // Assuming author_id is the current user's ID
+  author_id: string | null;
   title: string;
   slug: string;
   status: PageStatus;
@@ -26,7 +24,6 @@ export async function createPage(formData: FormData) {
     return { error: "User not authenticated." };
   }
 
-  // Basic data extraction, no Zod for now as requested
   const rawFormData = {
     title: formData.get("title") as string,
     slug: formData.get("slug") as string,
@@ -36,36 +33,77 @@ export async function createPage(formData: FormData) {
     meta_description: formData.get("meta_description") as string || null,
   };
 
-  // Basic validation
   if (!rawFormData.title || !rawFormData.slug || isNaN(rawFormData.language_id) || !rawFormData.status) {
     return { error: "Missing required fields: title, slug, language, or status." };
   }
 
   const pageData: UpsertPagePayload = {
     ...rawFormData,
-    author_id: user.id, // Set the author to the current user
+    author_id: user.id,
   };
 
-  const { data, error } = await supabase
+  const { data: newPage, error: createError } = await supabase
     .from("pages")
     .insert(pageData)
     .select()
     .single();
 
-  if (error) {
-    console.error("Error creating page:", error);
-    return { error: `Failed to create page: ${error.message}` };
+  if (createError) {
+    console.error("Error creating page:", createError);
+    return { error: `Failed to create page: ${createError.message}` };
   }
 
-  revalidatePath("/cms/pages"); // Revalidate the list page
-  if (data?.id) {
-    revalidatePath(`/cms/pages/${data.id}/edit`); // Revalidate the edit page if needed
-    redirect(`/cms/pages/${data.id}/edit?success=Page created successfully`); // Redirect to edit page
+  let successMessage = "Page created successfully.";
+
+  // --- Auto-create localized versions ---
+  if (newPage) {
+    const { data: languages, error: langError } = await supabase
+      .from("languages")
+      .select("id, code")
+      .neq("id", newPage.language_id); // Get other active languages
+
+    if (langError) {
+      console.error("Error fetching other languages for auto-creation:", langError);
+      // Proceed without auto-creating if languages can't be fetched
+    } else if (languages && languages.length > 0) {
+      let placeholderCreations = 0;
+      for (const lang of languages) {
+        const placeholderPageData: UpsertPagePayload = {
+          ...pageData, // Use original data as a base
+          language_id: lang.id,
+          title: `[${lang.code.toUpperCase()}] ${newPage.title}`, // Placeholder title
+          status: 'draft', // Always create placeholders as drafts
+          meta_title: null, // Clear SEO fields for placeholders
+          meta_description: null,
+          // slug can remain the same as it's unique per language_id
+        };
+        const { error: placeholderError } = await supabase
+          .from("pages")
+          .insert(placeholderPageData);
+
+        if (placeholderError) {
+          console.error(`Error auto-creating page for language ${lang.code}:`, placeholderError);
+        } else {
+          placeholderCreations++;
+        }
+      }
+      if (placeholderCreations > 0) {
+        successMessage += ` ${placeholderCreations} placeholder version(s) also created.`;
+      }
+    }
+  }
+  // --- End auto-create ---
+
+  revalidatePath("/cms/pages");
+  if (newPage?.id) {
+    revalidatePath(`/cms/pages/${newPage.id}/edit`);
+    redirect(`/cms/pages/${newPage.id}/edit?success=${encodeURIComponent(successMessage)}`);
   } else {
-    redirect(`/cms/pages?success=Page created successfully`);
+    redirect(`/cms/pages?success=${encodeURIComponent(successMessage)}`);
   }
 }
 
+// updatePage and deletePage actions remain the same as before
 export async function updatePage(pageId: number, formData: FormData) {
   const supabase = createClient();
 
@@ -74,7 +112,6 @@ export async function updatePage(pageId: number, formData: FormData) {
     return { error: "User not authenticated." };
   }
 
-  // Basic data extraction
   const rawFormData = {
     title: formData.get("title") as string,
     slug: formData.get("slug") as string,
@@ -88,21 +125,18 @@ export async function updatePage(pageId: number, formData: FormData) {
      return { error: "Missing required fields: title, slug, language, or status." };
   }
 
-  // Construct the update payload, excluding fields like author_id if it shouldn't be changed on update
-  const pageData: Partial<UpsertPagePayload> = {
+  const pageUpdateData: Partial<UpsertPagePayload> = {
     title: rawFormData.title,
     slug: rawFormData.slug,
     language_id: rawFormData.language_id,
     status: rawFormData.status,
     meta_title: rawFormData.meta_title,
     meta_description: rawFormData.meta_description,
-    // updated_at will be handled by the database trigger
   };
-
 
   const { error } = await supabase
     .from("pages")
-    .update(pageData)
+    .update(pageUpdateData)
     .eq("id", pageId);
 
   if (error) {
@@ -112,9 +146,6 @@ export async function updatePage(pageId: number, formData: FormData) {
 
   revalidatePath("/cms/pages");
   revalidatePath(`/cms/pages/${pageId}/edit`);
-  // Instead of redirecting, we might want to return a success message
-  // that the form component can display.
-  // For now, redirecting back to the edit page with a query param.
   redirect(`/cms/pages/${pageId}/edit?success=Page updated successfully`);
 }
 
@@ -132,7 +163,5 @@ export async function deletePage(pageId: number) {
   }
 
   revalidatePath("/cms/pages");
-  // No redirect here, the list page will just update.
-  // Or redirect to the list page if called from an edit page.
   redirect("/cms/pages?success=Page deleted successfully");
 }

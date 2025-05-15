@@ -22,6 +22,55 @@ export interface Language {
 
 export type PageStatus = 'draft' | 'published' | 'archived';
 
+// --- Block Type Definitions ---
+export const availableBlockTypes = ["text", "heading", "image", "button"] as const; // Add more as needed
+export type BlockType = (typeof availableBlockTypes)[number];
+
+// Content structure for each block type
+export interface TextBlockContent {
+  html_content: string; // For rich text, or simple text
+}
+
+export interface HeadingBlockContent {
+  level: 1 | 2 | 3 | 4 | 5 | 6;
+  text_content: string;
+}
+
+export interface ImageBlockContent {
+  media_id: string | null; // UUID of the media item
+  alt_text?: string;
+  caption?: string;
+}
+
+export interface ButtonBlockContent {
+  text: string;
+  url: string;
+  variant?: 'default' | 'outline' | 'secondary' | 'ghost' | 'link'; // Example variants
+  size?: 'default' | 'sm' | 'lg';
+}
+
+// Discriminated union for block content for type safety
+export type BlockContent =
+  | ({ type: "text" } & TextBlockContent)
+  | ({ type: "heading" } & HeadingBlockContent)
+  | ({ type: "image" } & ImageBlockContent)
+  | ({ type: "button" } & ButtonBlockContent);
+  // Add other block content types here
+
+export interface Block {
+  id: number; // bigint
+  page_id?: number | null; // bigint
+  post_id?: number | null; // bigint
+  language_id: number; // bigint
+  block_type: BlockType; // Use the defined BlockType
+  content: any; // jsonb. Ideally, this would be BlockContent, but Supabase client might return it as `any` initially. We'll cast it.
+  order: number;
+  created_at: string;
+  updated_at: string;
+}
+// --- End Block Type Definitions ---
+
+
 export interface Page {
   id: number;
   language_id: number;
@@ -33,6 +82,7 @@ export interface Page {
   meta_description?: string | null;
   created_at: string;
   updated_at: string;
+  blocks?: Block[]; // For fetching blocks along with the page
 }
 
 export interface Post {
@@ -48,6 +98,7 @@ export interface Post {
   meta_description?: string | null;
   created_at: string;
   updated_at: string;
+  blocks?: Block[]; // For fetching blocks along with the post
 }
 
 export interface Media {
@@ -58,18 +109,6 @@ export interface Media {
   file_type?: string | null;
   size_bytes?: number | null;
   description?: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface Block {
-  id: number;
-  page_id?: number | null;
-  post_id?: number | null;
-  language_id: number;
-  block_type: string;
-  content?: any | null; // Define more specific types based on block_type if possible
-  order: number;
   created_at: string;
   updated_at: string;
 }
@@ -94,13 +133,15 @@ export interface AuthUser {
     email?: string;
     created_at?: string;
     last_sign_in_at?: string;
-    // Add other fields from auth.users if needed
 }
 
 export interface UserWithProfile {
-    authUser: AuthUser; // Data from auth.users
-    profile: Profile | null; // Data from public.profiles
+    authUser: AuthUser;
+    profile: Profile | null;
 }
+
+// Reminder: Generate full types with `npx supabase gen types typescript ...`
+
 // It's highly recommended to generate the full database types using:
 // npx supabase gen types typescript --project-id YOUR_PROJECT_ID --schema public > utils/supabase/database.types.ts
 // And then import { Database } from './database.types'; in your Supabase client/server files.
