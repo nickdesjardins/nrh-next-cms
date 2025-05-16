@@ -16,6 +16,7 @@ import { getActiveLanguagesServerSide } from "@/utils/supabase/server"; // To ge
 interface PageWithBlocks extends Page {
   blocks: Block[];
   language_code?: string; // From joined languages table
+  translation_group_id?: string; // Explicitly define the property type
 }
 
 async function getPageDataWithBlocks(id: number): Promise<PageWithBlocks | null> {
@@ -84,7 +85,10 @@ export default async function EditPage(props: { params: Promise<{ id: string }> 
         <div className="flex items-center gap-3">
             {allSiteLanguages.length > 0 && (
                  <ContentLanguageSwitcher
-                    currentItem={pageWithBlocks}
+                    currentItem={{
+                      ...pageWithBlocks,
+                      translation_group_id: pageWithBlocks.translation_group_id ?? ""
+                    }}
                     itemType="page"
                     allSiteLanguages={allSiteLanguages}
                   />

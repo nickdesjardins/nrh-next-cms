@@ -17,6 +17,7 @@ import { getActiveLanguagesServerSide } from "@/utils/supabase/server";
 interface PostWithBlocks extends PostType {
   blocks: BlockType[];
   language_code?: string; // From joined languages table
+  translation_group_id: string; // Ensure this is required
 }
 
 async function getPostDataWithBlocks(id: number): Promise<PostWithBlocks | null> {
@@ -41,7 +42,13 @@ async function getPostDataWithBlocks(id: number): Promise<PostWithBlocks | null>
   // If Supabase JS SDK types it as an array, adjust accordingly.
   const langCode = (postData.languages as unknown as Language)?.code;
 
-  return { ...postData, blocks: postData.blocks || [], language_code: langCode } as PostWithBlocks;
+  // Ensure translation_group_id is included for ContentLanguageSwitcher
+  return {
+    ...postData,
+    blocks: postData.blocks || [],
+    language_code: langCode,
+    translation_group_id: postData.translation_group_id, // Now always present
+  } as PostWithBlocks & { translation_group_id: string };
 }
 
 export default async function EditPostPage(props: { params: Promise<{ id: string }> }) {
