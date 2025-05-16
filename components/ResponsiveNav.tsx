@@ -1,0 +1,256 @@
+"use client";
+
+import Link from 'next/link';
+import React, { useState, useEffect, useMemo } from 'react'; // Added React for JSX namespace
+import type { NavigationItem } from '../utils/supabase/types'; // Relative path from components/
+
+// Define a type for hierarchical navigation items
+interface HierarchicalNavigationItem extends NavigationItem {
+  children: HierarchicalNavigationItem[];
+}
+
+// SVG Icon for dropdowns/expandable sections
+const ChevronDownIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" {...props}>
+    <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.25 4.25a.75.75 0 01-1.06 0L5.23 8.27a.75.75 0 01.02-1.06z" clipRule="evenodd" />
+  </svg>
+);
+
+// Utility function to build the hierarchy from a flat list
+const buildHierarchy = (items: NavigationItem[]): HierarchicalNavigationItem[] => {
+  const hierarchy: HierarchicalNavigationItem[] = [];
+  const itemMap: { [id: string]: HierarchicalNavigationItem } = {};
+
+  items.forEach(item => {
+    itemMap[item.id] = { ...item, children: [] };
+  });
+
+  items.forEach(item => {
+    if (item.parent_id && itemMap[item.parent_id]) {
+      itemMap[item.parent_id].children.push(itemMap[item.id]);
+    } else {
+      // Add to root if no parent_id or parent_id not in map (handles orphaned items gracefully)
+      if (itemMap[item.id]) { // Ensure item itself exists in map
+        hierarchy.push(itemMap[item.id]);
+      }
+    }
+  });
+  return hierarchy;
+};
+
+
+interface ResponsiveNavProps {
+  homeLinkHref: string;
+  homeLinkLabel: string;
+  navItems: NavigationItem[];
+  canAccessCms: boolean;
+  cmsDashboardLinkHref: string;
+  cmsDashboardLinkLabel: string;
+  headerAuthComponent: React.ReactNode;
+  languageSwitcherComponent: React.ReactNode;
+}
+
+export default function ResponsiveNav({
+  homeLinkHref,
+  homeLinkLabel,
+  navItems,
+  canAccessCms,
+  cmsDashboardLinkHref,
+  cmsDashboardLinkLabel,
+  headerAuthComponent,
+  languageSwitcherComponent,
+}: ResponsiveNavProps) {
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [expandedMobileItems, setExpandedMobileItems] = useState<Record<string, boolean>>({});
+
+  const hierarchicalNavItems = useMemo(() => buildHierarchy(navItems), [navItems]);
+
+  const toggleMobileMenu = () => {
+    setIsMobileMenuOpen(!isMobileMenuOpen);
+    // Optionally reset expanded submenus when main menu closes
+    // if (!isMobileMenuOpen) setExpandedMobileItems({});
+  };
+
+  const toggleMobileSubmenu = (itemId: string) => {
+    setExpandedMobileItems(prev => ({ ...prev, [itemId]: !prev[itemId] }));
+  };
+
+  useEffect(() => { // Added opening curly brace
+    const handleResize = () => {
+      if (window.innerWidth >= 768 && isMobileMenuOpen) { // Tailwind 'md' breakpoint is 768px
+        setIsMobileMenuOpen(false);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [isMobileMenuOpen]);
+
+  const renderMobileNavItems = (items: HierarchicalNavigationItem[], level = 0): React.JSX.Element[] => {
+    return items.map(item => (
+      <div key={item.id} className={`${level > 0 ? 'ml-0' : ''}`}>
+        <div
+          className={`flex items-center justify-between w-full text-base font-medium text-foreground rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 ${level > 0 ? 'px-3 py-2' : 'px-3 py-2'}`}
+        >
+          <Link
+            href={item.url}
+            className="flex-grow py-0" // py-0 because parent div has py-2
+            onClick={() => {
+              toggleMobileMenu(); // Always close main mobile menu on any link click
+            }}
+          >
+            {item.label}
+          </Link>
+          {item.children && item.children.length > 0 && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleMobileSubmenu(String(item.id)); // Cast item.id to string
+              }}
+              className="p-2 -mr-2 flex-shrink-0"
+              aria-expanded={!!expandedMobileItems[String(item.id)]}
+              aria-label={`Toggle submenu for ${item.label}`}
+            >
+              <ChevronDownIcon className={`h-5 w-5 transform transition-transform duration-200 ${expandedMobileItems[String(item.id)] ? 'rotate-180' : ''}`} />
+            </button>
+          )}
+        </div>
+        {item.children && item.children.length > 0 && expandedMobileItems[String(item.id)] && (
+          <div className="pl-[calc(0.75rem+0.5rem)] mt-1 mb-1 border-l-2 border-gray-300 dark:border-gray-600 ml-[calc(0.75rem+1px)] mr-3">
+            {renderMobileNavItems(item.children, level + 1)}
+          </div>
+        )}
+      </div>
+    ));
+  };
+
+  const renderDesktopNavItems = (items: HierarchicalNavigationItem[], isSubmenu = false): React.JSX.Element[] => {
+    return items.map(item => (
+      <div key={item.id} className={`relative group ${isSubmenu ? 'w-full' : ''}`}>
+        <Link
+          href={item.url}
+          className={`flex items-center justify-between hover:underline px-3 py-2 text-sm text-foreground ${isSubmenu ? 'w-full hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md' : ''}`}
+        >
+          {item.label}
+          {item.children && item.children.length > 0 && (
+            <ChevronDownIcon className={`ml-1 h-4 w-4 transition-transform duration-200 group-hover:rotate-180 ${isSubmenu ? '' : ''}`} />
+          )}
+        </Link>
+        {item.children && item.children.length > 0 && (
+          <div
+            className={`
+              absolute top-full left-0 mt-0 w-56 bg-background border border-gray-200 dark:border-gray-700 rounded-md shadow-lg py-1
+              opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 ease-in-out z-20
+              ${isSubmenu ? 'left-full top-0 -mt-[2px] ml-0' : ''}
+            `}
+          > {/* -mt-[2px] to align better with parent item border */}
+            {renderDesktopNavItems(item.children, true)}
+          </div>
+        )}
+      </div>
+    ));
+  };
+
+  return (
+    <>
+      {/* Main container for desktop and mobile top bar elements */}
+      <div className="flex justify-between items-center w-full">
+        {/* Left side: Home link (visible on desktop and mobile) */}
+        <div className="flex items-center">
+          <Link href={homeLinkHref} className="hover:underline font-semibold text-sm text-foreground">
+            {homeLinkLabel}
+          </Link>
+          {/* Desktop: Additional Nav items */}
+          <div className="hidden md:flex items-baseline ml-6 space-x-1"> {/* Adjusted space-x for items with internal padding */}
+            {hierarchicalNavItems.length > 0 && renderDesktopNavItems(hierarchicalNavItems)}
+          </div>
+        </div>
+
+        {/* Right side: Auth, LangSwitcher (desktop), Hamburger (mobile) */}
+        <div className="hidden md:flex items-center space-x-4">
+          {canAccessCms && (
+            <Link href={cmsDashboardLinkHref} className="hover:underline text-sm text-foreground">
+              {cmsDashboardLinkLabel}
+            </Link>
+          )}
+          {headerAuthComponent}
+          {languageSwitcherComponent}
+        </div>
+
+        <div className="md:hidden flex items-center">
+          <button
+            onClick={toggleMobileMenu}
+            className="p-2 rounded-md text-foreground hover:text-primary focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary"
+            aria-label="Open main menu"
+            aria-expanded={isMobileMenuOpen}
+          >
+            {isMobileMenuOpen ? (
+              <svg className="h-6 w-6" stroke="currentColor" fill="none" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            ) : (
+              <svg className="h-6 w-6" stroke="currentColor" fill="none" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* Overlay for Mobile Menu - Fades In/Out */}
+      <div
+        className={`fixed inset-0 bg-black/50 backdrop-blur-sm z-30 transition-opacity ease-in-out duration-300 md:hidden ${
+          isMobileMenuOpen ? 'opacity-100 visible' : 'opacity-0 invisible'
+        }`}
+        onClick={toggleMobileMenu}
+        aria-hidden={!isMobileMenuOpen}
+      />
+
+      {/* Slide-in Mobile Menu Container (for the sliding content) */}
+      <div
+        className={`fixed inset-0 z-40 transform transition-transform ease-in-out duration-300 md:hidden ${
+          isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="mobile-menu-title"
+      >
+        {/* Menu Content (this part slides with the container above) */}
+        <div className="fixed top-0 left-0 h-full w-full max-w-sm bg-background text-foreground shadow-xl p-5 z-50 flex flex-col">
+          <div className="flex justify-between items-center mb-6">
+            <span id="mobile-menu-title" className="text-lg font-semibold">Menu</span>
+            <button onClick={toggleMobileMenu} className="p-2 -mr-2 text-foreground hover:text-primary" aria-label="Close menu">
+              <svg className="h-6 w-6" stroke="currentColor" fill="none" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          
+          <nav className="flex-grow flex flex-col space-y-1 overflow-y-auto"> {/* Adjusted space-y for new item structure */}
+            <Link
+              href={homeLinkHref}
+              className="block px-3 py-2 rounded-md text-base font-medium text-foreground hover:bg-gray-100 dark:hover:bg-gray-700"
+              onClick={toggleMobileMenu}
+            >
+              {homeLinkLabel}
+            </Link>
+            {renderMobileNavItems(hierarchicalNavItems)}
+            {canAccessCms && (
+              <Link
+                href={cmsDashboardLinkHref}
+                className="block px-3 py-2 rounded-md text-base font-medium text-foreground hover:bg-gray-100 dark:hover:bg-gray-700"
+                onClick={toggleMobileMenu}
+              >
+                {cmsDashboardLinkLabel}
+              </Link>
+            )}
+          </nav>
+
+          <div className="mt-auto pt-6 border-t border-foreground/20 space-y-4">
+            <div onClick={toggleMobileMenu}>{headerAuthComponent}</div>
+            <div onClick={toggleMobileMenu}>{languageSwitcherComponent}</div>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}

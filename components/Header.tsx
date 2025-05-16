@@ -1,14 +1,15 @@
 // components/Header.tsx
-import { createClient as createSupabaseServerClient } from '@/utils/supabase/server';
+import { createClient as createSupabaseServerClient } from '../utils/supabase/server'; // Adjusted path
 import Link from 'next/link';
-import { getProfileWithRoleServerSide } from '@/utils/supabase/server';
-import type { UserRole, NavigationItem } from '@/utils/supabase/types';
-import HeaderAuth from '@/components/header-auth';
+import { getProfileWithRoleServerSide } from '../utils/supabase/server'; // Adjusted path
+import type { UserRole, NavigationItem } from '../utils/supabase/types'; // Adjusted path
+import HeaderAuth from './header-auth'; // Adjusted path if needed, assuming it's in components/
 import LanguageSwitcher from './LanguageSwitcher';
-import { getNavigationMenu } from '@/app/cms/navigation/actions'; // Import the new function
-import { headers } from 'next/headers'; // To get current language
+import { getNavigationMenu } from '../app/cms/navigation/actions'; // Adjusted path
+import { headers } from 'next/headers';
+import ResponsiveNav from './ResponsiveNav'; // Import the new client component
 
-const DEFAULT_LOCALE_FOR_HEADER = 'en'; // Define a default locale
+const DEFAULT_LOCALE_FOR_HEADER = 'en';
 
 export default async function Header() {
   const supabase = createSupabaseServerClient();
@@ -22,7 +23,6 @@ export default async function Header() {
 
   const canAccessCms = userRole === 'ADMIN' || userRole === 'WRITER';
 
-  // Fetch navigation items
   const heads = await headers();
   const currentLocale = heads.get('x-user-locale') || DEFAULT_LOCALE_FOR_HEADER;
   let headerNavItems: NavigationItem[] = [];
@@ -33,36 +33,16 @@ export default async function Header() {
     // Gracefully handle error, e.g. by leaving headerNavItems empty
   }
   
-  // Simple function to render navigation items (can be expanded for hierarchy)
-  const renderNavItems = (items: NavigationItem[]) => {
-    return items.map(item => (
-      <Link key={item.id} href={item.url} className="hover:underline px-3 py-2">
-        {item.label}
-      </Link>
-    ));
-  };
-
   return (
-    <nav className="w-full flex justify-center border-b border-b-foreground/10 h-16">
-      <div className="w-full max-w-7xl flex justify-between items-center p-3 text-sm">
-        <div className="flex items-center">
-          <Link href="/" className="hover:underline font-semibold">Home</Link>
-          {/* Render dynamic navigation items */}
-          {headerNavItems.length > 0 && (
-            <div className="ml-6 flex items-baseline space-x-4">
-              {renderNavItems(headerNavItems.filter(item => !item.parent_id))}
-            </div>
-          )}
-        </div>
-        
-        <div className="flex items-center space-x-4">
-          {canAccessCms && (
-              <Link href="/cms/dashboard" className="hover:underline">CMS Dashboard</Link>
-          )}
-          <HeaderAuth />
-          <LanguageSwitcher />
-        </div>
-      </div>
-    </nav>
+    <ResponsiveNav
+      homeLinkHref="/"
+      homeLinkLabel="Home"
+      navItems={headerNavItems}
+      canAccessCms={canAccessCms}
+      cmsDashboardLinkHref="/cms/dashboard"
+      cmsDashboardLinkLabel="CMS Dashboard"
+      headerAuthComponent={<HeaderAuth />}
+      languageSwitcherComponent={<LanguageSwitcher />}
+    />
   );
 }
