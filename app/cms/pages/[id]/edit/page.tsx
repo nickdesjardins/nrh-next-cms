@@ -44,7 +44,8 @@ async function getPageDataWithBlocks(id: number): Promise<PageWithBlocks | null>
   return { ...pageData, blocks: pageData.blocks || [], language_code: langCode } as PageWithBlocks;
 }
 
-export default async function EditPage({ params }: { params: { id: string } }) {
+export default async function EditPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const pageId = parseInt(params.id, 10);
   if (isNaN(pageId)) return notFound();
 

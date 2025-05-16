@@ -1,11 +1,11 @@
 // utils/supabase/server.ts
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
-import { cookies } from 'next/headers';
+import { cookies, type UnsafeUnwrappedCookies } from 'next/headers';
 import { Profile, Language } from './types'; // Import custom types
 
 // This is the standard server client creation function from the Vercel example
 export const createClient = () => {
-  const cookieStorePromise = cookies();
+  const cookieStorePromise = (cookies() as unknown as UnsafeUnwrappedCookies);
 
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

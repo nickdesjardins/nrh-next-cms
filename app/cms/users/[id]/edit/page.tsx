@@ -50,7 +50,8 @@ async function getUserAndProfileData(userId: string): Promise<{ authUser: AuthUs
   return { authUser: simplifiedAuthUser, profile: profileData as Profile | null };
 }
 
-export default async function EditUserPage({ params }: { params: { id: string } }) {
+export default async function EditUserPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const userId = params.id;
   if (!userId) {
     return notFound();

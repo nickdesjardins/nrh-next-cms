@@ -86,16 +86,17 @@ async function getPagesWithDetails(filterLanguageId?: number): Promise<{ page: P
 }
 
 interface CmsPagesListPageProps {
-  searchParams?: {
+  searchParams?: Promise<{
     lang?: string; // Language ID as a string from query param
     success?: string; // For success messages
-  };
+  }>;
 }
 
-export default async function CmsPagesListPage({ searchParams }: CmsPagesListPageProps) {
+export default async function CmsPagesListPage(props: CmsPagesListPageProps) {
+  const searchParams = await props.searchParams;
   const allLanguages = await getActiveLanguagesServerSide();
   const selectedLangId = searchParams?.lang ? parseInt(searchParams.lang, 10) : undefined;
-  
+
   // Validate selectedLangId if it exists
   const isValidLangId = selectedLangId ? allLanguages.some(l => l.id === selectedLangId) : true;
   const filterLangId = isValidLangId ? selectedLangId : undefined;

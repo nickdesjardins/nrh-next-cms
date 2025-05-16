@@ -12,9 +12,9 @@ export const dynamicParams = true; // Allow new slugs to be rendered at request 
 export const revalidate = 3600; // Revalidate static pages every hour (adjust as needed)
 
 interface PostPageProps {
-  params: {
+  params: Promise<{
     slug: string; // Slug is language-specific and unique within its language for posts
-  };
+  }>;
 }
 
 // Fetch post data directly by its language-specific slug.
@@ -115,10 +115,8 @@ export async function generateStaticParams(): Promise<PostPageProps['params'][]>
 }
 
 // Generate metadata for the specific post slug
-export async function generateMetadata(
-  { params }: PostPageProps,
-  parent: ResolvingMetadata
-): Promise<Metadata> {
+export async function generateMetadata(props: PostPageProps, parent: ResolvingMetadata): Promise<Metadata> {
+  const params = await props.params;
   const postData = await getPostDataBySlug(params.slug);
 
   if (!postData) {
@@ -170,7 +168,8 @@ export async function generateMetadata(
 }
 
 // Server Component: Fetches data for the specific slug and passes to Client Component
-export default async function DynamicPostPage({ params }: PostPageProps) {
+export default async function DynamicPostPage(props: PostPageProps) {
+  const params = await props.params;
   const initialPostData = await getPostDataBySlug(params.slug);
 
   if (!initialPostData) {

@@ -26,7 +26,8 @@ async function getMediaData(id: string): Promise<Media | null> {
   return data;
 }
 
-export default async function EditMediaPage({ params }: { params: { id: string } }) {
+export default async function EditMediaPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const mediaId = params.id;
   if (!mediaId) { // Basic check, UUID validation could be added
     return notFound();

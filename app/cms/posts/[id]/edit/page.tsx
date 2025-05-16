@@ -44,7 +44,8 @@ async function getPostDataWithBlocks(id: number): Promise<PostWithBlocks | null>
   return { ...postData, blocks: postData.blocks || [], language_code: langCode } as PostWithBlocks;
 }
 
-export default async function EditPostPage({ params }: { params: { id: string } }) {
+export default async function EditPostPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const postId = parseInt(params.id, 10);
   if (isNaN(postId)) {
     return notFound();
@@ -92,11 +93,11 @@ export default async function EditPostPage({ params }: { params: { id: string } 
         </div>
         <div className="flex items-center gap-3">
             {allSiteLanguages.length > 0 && ( // Only show switcher if there are languages
-                 <ContentLanguageSwitcher
+                 (<ContentLanguageSwitcher
                     currentItem={postWithBlocks} // Pass the full post object
                     itemType="post"
                     allSiteLanguages={allSiteLanguages}
-                  />
+                  />)
             )}
             <Link href={publicPostUrl} target="_blank" rel="noopener noreferrer">
               <Button variant="outline">
@@ -105,7 +106,6 @@ export default async function EditPostPage({ params }: { params: { id: string } 
             </Link>
         </div>
       </div>
-
       {/* Form for Post Metadata (title, slug, excerpt, etc.) */}
       <PostForm
         post={postWithBlocks}
@@ -113,9 +113,7 @@ export default async function EditPostPage({ params }: { params: { id: string } 
         actionButtonText="Update Post Metadata"
         isEditing={true}
       />
-
       <Separator className="my-8" />
-
       {/* Area for managing content blocks */}
       <div>
         <h2 className="text-xl font-semibold mb-4">Post Content Blocks</h2>

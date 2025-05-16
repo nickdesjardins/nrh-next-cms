@@ -20,7 +20,8 @@ async function getNavigationItemData(id: number): Promise<NavigationItem | null>
   return data;
 }
 
-export default async function EditNavigationItemPage({ params }: { params: { id: string } }) {
+export default async function EditNavigationItemPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const itemId = parseInt(params.id, 10);
   if (isNaN(itemId)) {
     return notFound();

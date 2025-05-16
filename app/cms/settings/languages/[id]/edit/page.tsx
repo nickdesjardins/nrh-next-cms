@@ -34,7 +34,8 @@ async function getAllLanguages(): Promise<Language[]> {
     return data || [];
 }
 
-export default async function EditLanguagePage({ params }: { params: { id: string } }) {
+export default async function EditLanguagePage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const languageId = parseInt(params.id, 10);
   if (isNaN(languageId)) {
     return notFound();

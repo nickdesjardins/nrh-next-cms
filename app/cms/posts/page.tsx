@@ -82,13 +82,14 @@ async function getPostsWithDetails(filterLanguageId?: number): Promise<{ post: P
 }
 
 interface CmsPostsListPageProps {
-  searchParams?: {
+  searchParams?: Promise<{
     lang?: string; // Language ID as a string
     success?: string;
-  };
+  }>;
 }
 
-export default async function CmsPostsListPage({ searchParams }: CmsPostsListPageProps) {
+export default async function CmsPostsListPage(props: CmsPostsListPageProps) {
+  const searchParams = await props.searchParams;
   const allLanguages = await getActiveLanguagesServerSide();
   const selectedLangId = searchParams?.lang ? parseInt(searchParams.lang, 10) : undefined;
   const isValidLangId = selectedLangId ? allLanguages.some(l => l.id === selectedLangId) : true;
