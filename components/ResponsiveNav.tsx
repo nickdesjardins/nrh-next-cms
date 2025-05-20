@@ -176,7 +176,7 @@ export default function ResponsiveNav({
           {languageSwitcherComponent}
         </div>
 
-        <div className="md:hidden flex items-center">
+        <div className="md:hidden flex items-center z-[60]">
           <button
             onClick={toggleMobileMenu}
             className="p-2 rounded-md text-foreground hover:text-primary focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary"
@@ -198,7 +198,7 @@ export default function ResponsiveNav({
 
       {/* Overlay for Mobile Menu - Fades In/Out */}
       <div
-        className={`fixed inset-0 bg-black/50 backdrop-blur-sm z-30 transition-opacity ease-in-out duration-300 md:hidden ${
+        className={`fixed inset-0 bg-black/50 backdrop-blur-sm z-30 transition-opacity ease-in-out duration-300 top-16 md:hidden ${
           isMobileMenuOpen ? 'opacity-100 visible' : 'opacity-0 invisible'
         }`}
         onClick={toggleMobileMenu}
@@ -215,17 +215,8 @@ export default function ResponsiveNav({
         aria-labelledby="mobile-menu-title"
       >
         {/* Menu Content (this part slides with the container above) */}
-        <div className="fixed top-0 left-0 h-full w-full max-w-sm bg-background text-foreground shadow-xl p-5 z-50 flex flex-col">
-          <div className="flex justify-between items-center mb-6">
-            <span id="mobile-menu-title" className="text-lg font-semibold">Menu</span>
-            <button onClick={toggleMobileMenu} className="p-2 -mr-2 text-foreground hover:text-primary" aria-label="Close menu">
-              <svg className="h-6 w-6" stroke="currentColor" fill="none" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-          
-          <nav className="flex-grow flex flex-col space-y-1 overflow-y-auto"> {/* Adjusted space-y for new item structure */}
+        <div className="fixed top-16 left-0 h-[calc(100vh-4rem)] w-full max-w-sm bg-background text-foreground shadow-xl p-5 z-50 flex flex-col">
+          <nav className="flex-grow flex flex-col space-y-1 overflow-y-auto pt-6"> {/* Adjusted space-y and added pt-6 for spacing previously provided by mb-6 */}
             <Link
               href={homeLinkHref}
               className="block px-3 py-2 rounded-md text-base font-medium text-foreground hover:bg-gray-100 dark:hover:bg-gray-700"
