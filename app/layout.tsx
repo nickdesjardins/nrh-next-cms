@@ -1,3 +1,4 @@
+// app/layout.tsx
 import { EnvVarWarning } from "@/components/env-var-warning";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 import { hasEnvVars } from "@/utils/supabase/check-env-vars";
@@ -6,7 +7,7 @@ import { AuthProvider } from "@/context/AuthContext";
 import { LanguageProvider } from "@/context/LanguageContext";
 import "./globals.css";
 import Header from "@/components/Header";
-import FooterNavigation from "@/components/FooterNavigation"; // Import FooterNavigation
+import FooterNavigation from "@/components/FooterNavigation";
 import { headers } from 'next/headers';
 
 const defaultUrl = process.env.VERCEL_URL
@@ -17,8 +18,8 @@ const DEFAULT_LOCALE_FOR_LAYOUT = 'en';
 
 export const metadata = {
   metadataBase: new URL(defaultUrl),
-  title: 'My Ultra-Fast CMS', // Update as needed
-  description: 'A block-based TypeScript CMS with Next.js and Supabase', // Update
+  title: 'My Ultra-Fast CMS',
+  description: 'A block-based TypeScript CMS with Next.js and Supabase',
 };
 
 export default async function RootLayout({
@@ -29,10 +30,7 @@ export default async function RootLayout({
 
   const heads = await headers();
   const rawHeaderLocale = heads.get('x-user-locale');
-  console.log(`[RootLayout] Middleware-set X-User-Locale header: "${rawHeaderLocale}"`); // <-- ADD THIS LOG
-
   const serverDeterminedLocale = rawHeaderLocale || DEFAULT_LOCALE_FOR_LAYOUT;
-  console.log(`[RootLayout] serverDeterminedLocale passed to LanguageProvider: "${serverDeterminedLocale}"`); // <-- ADD THIS LOG
 
   return (
     <html lang={serverDeterminedLocale} suppressHydrationWarning>

@@ -3,12 +3,10 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import type { Profile, UserRole } from '@/utils/supabase/types';
 
-const LANGUAGE_COOKIE_KEY = 'NEXT_USER_LOCALE'; // Must match LanguageProvider
-const DEFAULT_LOCALE = 'en'; // Hardcoded default for middleware simplicity
-// In a more advanced setup, you might fetch/cache supported locales here
+const LANGUAGE_COOKIE_KEY = 'NEXT_USER_LOCALE';
+const DEFAULT_LOCALE = 'en';
 const SUPPORTED_LOCALES = ['en', 'fr']; // Keep this in sync with DB or make dynamic
 
-// CMS Route Permissions (from Phase 1)
 const cmsRoutePermissions: Record<string, UserRole[]> = {
   '/cms': ['WRITER', 'ADMIN'],
   '/cms/admin': ['ADMIN'],
@@ -27,14 +25,13 @@ function getRequiredRolesForPath(pathname: string): UserRole[] | null {
 }
 
 export async function middleware(request: NextRequest) {
-  const requestHeaders = new Headers(request.headers); // Clone request headers
+  const requestHeaders = new Headers(request.headers);
   let response = NextResponse.next({
     request: {
-      headers: requestHeaders, // Use the cloned headers
+      headers: requestHeaders,
     },
   });
 
-  // Supabase client for auth session refresh & role check
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -42,9 +39,9 @@ export async function middleware(request: NextRequest) {
       cookies: {
         get(name: string) { return request.cookies.get(name)?.value; },
         set(name: string, value: string, options: CookieOptions) {
-          request.cookies.set({ name, value, ...options }); // Apply to request cookies for chaining
-          response = NextResponse.next({ request: { headers: requestHeaders } }); // Recreate response with updated headers
-          response.cookies.set({ name, value, ...options }); // Apply to response cookies
+          request.cookies.set({ name, value, ...options });
+          response = NextResponse.next({ request: { headers: requestHeaders } });
+          response.cookies.set({ name, value, ...options });
         },
         remove(name: string, options: CookieOptions) {
           request.cookies.set({ name, value: '', ...options });
@@ -55,28 +52,18 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  await supabase.auth.getSession(); // Refresh Supabase session
+  await supabase.auth.getSession();
 
-  // ** Language Handling **
   const cookieLocale = request.cookies.get(LANGUAGE_COOKIE_KEY)?.value;
-  console.log(`[Middleware] Path: ${request.nextUrl.pathname}, Cookie "${LANGUAGE_COOKIE_KEY}" value from request: "${cookieLocale}"`); // <-- ADD THIS LOG
-
   let currentLocale = cookieLocale;
+
   if (!currentLocale || !SUPPORTED_LOCALES.includes(currentLocale)) {
-    console.log(`[Middleware] Cookie locale "${cookieLocale}" invalid or not supported. Falling back to DEFAULT_LOCALE: "${DEFAULT_LOCALE}"`); // <-- ADD THIS LOG
     currentLocale = DEFAULT_LOCALE;
   }
 
   requestHeaders.set('X-User-Locale', currentLocale!);
-  console.log(`[Middleware] Set "X-User-Locale" header to: "${currentLocale}" for path: ${request.nextUrl.pathname}`); // <-- ADD THIS LOG
 
-  // Ensure the cookie is set in the browser for subsequent requests and client-side JS
-  if (request.cookies.get(LANGUAGE_COOKIE_KEY)?.value !== currentLocale) {
-      response.cookies.set(LANGUAGE_COOKIE_KEY, currentLocale, { path: '/', maxAge: 31536000, sameSite: 'lax' }); // 1 year
-  }
-
-  // ** Auth and CMS Route Protection (from Phase 1, adapted to use updated requestHeaders) **
-  const { data: { session } } = await supabase.auth.getSession(); // Use getSession to get session object
+  const { data: { session } } = await supabase.auth.getSession();
   const { pathname } = request.nextUrl;
 
   if (pathname.startsWith('/cms')) {
@@ -104,20 +91,28 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // Ensure the final response is based on the modified requestHeaders.
-  // If Supabase or other logic modified `response` to be a redirect, that should take precedence.
-  if (response.headers.get('location')) { // If it's already a redirect
+  // If response is already a redirect (e.g., from CMS auth checks), return it.
+  if (response.headers.get('location')) {
       return response;
   }
 
-  // If not a redirect, create a new response that definitely uses the modified headers.
-  // And ensure cookies from the potentially modified `response` (by Supabase) are carried over.
+  // Otherwise, create a new response that includes the modified request headers (like X-User-Locale).
+  // Also, ensure any cookies set by Supabase (on the original `response` object) are carried over.
   const finalResponse = NextResponse.next({
     request: {
-      headers: requestHeaders, // These include X-User-Locale
+      headers: requestHeaders, // These headers include X-User-Locale
     },
   });
-  response.cookies.getAll().forEach(cookie => finalResponse.cookies.set(cookie));
+
+  // Transfer cookies from the potentially modified `response` (by Supabase) to `finalResponse`
+  response.cookies.getAll().forEach(cookie => {
+    finalResponse.cookies.set(cookie.name, cookie.value, cookie);
+  });
+  
+  // Ensure our language cookie is also on the outgoing finalResponse if it changed or wasn't set.
+  if (request.cookies.get(LANGUAGE_COOKIE_KEY)?.value !== currentLocale) {
+      finalResponse.cookies.set(LANGUAGE_COOKIE_KEY, currentLocale!, { path: '/', maxAge: 31536000, sameSite: 'lax' });
+  }
 
   return finalResponse;
 }
