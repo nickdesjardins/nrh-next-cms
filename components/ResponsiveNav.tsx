@@ -203,7 +203,7 @@ export default function ResponsiveNav({
 
       {/* Overlay for Mobile Menu - Fades In/Out */}
       <div
-        className={`fixed inset-0 bg-black/50 backdrop-blur-sm z-50 transition-opacity ease-in-out duration-300 top-16 md:hidden ${
+        className={`fixed inset-0 bg-black/50 backdrop-blur-sm z-40 transition-opacity ease-in-out duration-300 top-16 md:hidden ${
           isMobileMenuOpen ? 'opacity-100 visible' : 'opacity-0 invisible'
         }`}
         onClick={toggleMobileMenu}

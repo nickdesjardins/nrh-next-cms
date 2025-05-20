@@ -10,11 +10,10 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar" // Ensure AvatarImage is imported if used
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
-import { signOutAction } from "@/app/actions"; // Import your sign out server action
+import { signOutAction } from "@/app/actions";
 
-// ... (LoadingSpinner and NavItem components remain the same)
 const LoadingSpinner = () => (
   <div className="flex justify-center items-center h-full w-full py-20">
     <div className="relative">
@@ -39,7 +38,7 @@ type NavItemProps = {
 
 const NavItem = ({ href, icon: Icon, children, isActive, adminOnly, writerOnly, isAdmin, isWriter }: NavItemProps) => {
   if (adminOnly && !isAdmin) return null
-  if (writerOnly && !isWriter && !isAdmin) return null // Writers or Admins can access
+  if (writerOnly && !isWriter && !isAdmin) return null
 
   return (
     <li>
@@ -62,9 +61,10 @@ const NavItem = ({ href, icon: Icon, children, isActive, adminOnly, writerOnly, 
 
 
 export default function CmsLayout({ children }: { children: ReactNode }) {
-  const { user, profile, role, isLoading, isAdmin, isWriter } = useAuth(); // Added profile for avatar
+  const { user, profile, role, isLoading, isAdmin, isWriter } = useAuth();
   const router = useRouter();
-  const [sidebarOpen, setSidebarOpen] = React.useState(true);
+  // CMS sidebar should be closed by default on mobile
+  const [cmsSidebarOpen, setCmsSidebarOpen] = React.useState(false); 
   const pathname = typeof window !== "undefined" ? window.location.pathname : "";
 
   useEffect(() => {
@@ -77,17 +77,34 @@ export default function CmsLayout({ children }: { children: ReactNode }) {
     }
   }, [user, role, isLoading, router, isAdmin, isWriter]);
 
-  // Attempt to make CMS layout full width by removing parent constraints
   useEffect(() => {
     const mainLayoutElement = document.querySelector('body > div > main > div.flex-1.w-full.flex.flex-col.items-center');
     if (mainLayoutElement) {
       mainLayoutElement.classList.remove('max-w-7xl');
-      (mainLayoutElement as HTMLElement).style.padding = '0'; // Remove padding if any was set by parent
+      (mainLayoutElement as HTMLElement).style.padding = '0';
     }
      const mainScreenChild = document.querySelector('main.min-h-screen > div.flex-1.w-full');
      if (mainScreenChild) {
         mainScreenChild.classList.remove("max-w-7xl");
     }
+
+    // Ensure CMS sidebar is open on desktop by default if preferred, adjust based on screen size.
+    // This example keeps it collapsible on mobile, respects `md:sticky` for desktop.
+    const handleResize = () => {
+      if (window.innerWidth >= 768) { // 'md' breakpoint
+        setCmsSidebarOpen(true); // Or keep it as is if you want it to remember its state on desktop
+      } else {
+        // On mobile, if it was forced open by resize, ensure it's closed unless explicitly opened by user
+        // This part is tricky; usually, you don't force it closed on resize to mobile,
+        // but let the `useState(false)` be the default for mobile.
+        // If you want it open by default on desktop:
+        // setCmsSidebarOpen(window.innerWidth >= 768);
+      }
+    };
+    handleResize(); // Initial check
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+
   }, []);
 
 
@@ -96,6 +113,7 @@ export default function CmsLayout({ children }: { children: ReactNode }) {
   }
 
   if (!user || (!isWriter && !isAdmin)) {
+    // This will likely show the spinner due to the redirect logic in useEffect
     return <LoadingSpinner />;
   }
 
@@ -106,8 +124,7 @@ export default function CmsLayout({ children }: { children: ReactNode }) {
   }
   const getRoleColor = () => isAdmin ? "bg-amber-500" : isWriter ? "bg-emerald-500" : "bg-sky-500";
 
-  let pageTitle = "CMS";
-  // ... (pageTitle logic from previous step, ensure it's complete for all CMS routes)
+  let pageTitle = "Dashboard";
   if (pathname === "/cms/dashboard") pageTitle = "Dashboard";
   else if (pathname.startsWith("/cms/pages/new")) pageTitle = "New Page";
   else if (pathname.startsWith("/cms/pages/") && pathname.endsWith("/edit")) pageTitle = "Edit Page";
@@ -130,22 +147,25 @@ export default function CmsLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className="w-full flex flex-col md:flex-row bg-slate-50 dark:bg-slate-950 min-h-screen">
-      <div className="fixed bottom-4 left-4 z-[100] md:hidden">
+      {/* CMS Mobile Toggle Button */}
+      <div className="fixed bottom-4 right-4 z-[60] md:hidden"> {/* Lowered z-index for toggle slightly, ResponsiveNav is z-50 for content */}
         <Button
           variant="outline"
           size="icon"
-          onClick={() => setSidebarOpen(!sidebarOpen)}
+          onClick={() => setCmsSidebarOpen(!cmsSidebarOpen)}
           className="bg-white shadow-lg dark:bg-slate-800 rounded-full h-12 w-12"
         >
-          {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          {cmsSidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </Button>
       </div>
 
+      {/* CMS Sidebar */}
       <aside
         className={cn(
-          "fixed md:sticky top-0 left-0 z-30 h-screen w-64 bg-white shadow-lg transition-transform duration-300 ease-in-out dark:bg-slate-900 dark:border-r dark:border-slate-700/60",
-          sidebarOpen ? "translate-x-0" : "-translate-x-full",
-          "md:translate-x-0 md:top-0 md:h-screen",
+          "fixed md:sticky top-0 left-0 h-screen w-64 bg-white shadow-lg transition-transform duration-300 ease-in-out dark:bg-slate-900 dark:border-r dark:border-slate-700/60",
+          "md:translate-x-0", // Default behavior for medium screens and up
+          cmsSidebarOpen ? "translate-x-0" : "-translate-x-full", // Controls mobile visibility
+          "z-30" // CMS Sidebar z-index (ResponsiveNav uses z-40 for its sliding container, z-50 for overlay/content)
         )}
       >
         <div className="flex flex-col h-full">
@@ -191,10 +211,6 @@ export default function CmsLayout({ children }: { children: ReactNode }) {
                   <NavItem href="/cms/settings/languages" icon={LanguagesIconLucide} isActive={pathname.startsWith("/cms/settings/languages")} adminOnly isAdmin={isAdmin}>
                     Languages
                   </NavItem>
-                  {/* Example for a generic settings page if you create one */}
-                  {/* <NavItem href="/cms/settings" icon={Settings} isActive={pathname === "/cms/settings"} adminOnly isAdmin={isAdmin}>
-                    Site Settings
-                  </NavItem> */}
                 </>
               )}
             </ul>
@@ -223,22 +239,29 @@ export default function CmsLayout({ children }: { children: ReactNode }) {
         </div>
       </aside>
 
-      
+      {/* Main Content Area for CMS */}
       <div className="flex-1 transition-all duration-300 ease-in-out w-full">
-        <header className="bg-background dark:bg-slate-800/30 border-b border-border h-16 flex items-center px-6 sticky top-0 z-20 w-full shrink-0">
-            <Button variant="ghost" size="icon" className="md:hidden mr-3 -ml-2" onClick={() => setSidebarOpen(!sidebarOpen)}>
+        {/* CMS Header bar */}
+        <header className="bg-background dark:bg-slate-800/30 border-b border-border h-16 flex items-center px-6 sticky top-0 z-20 w-full shrink-0"> {/* CMS Header z-index below CMS sidebar */}
+            <Button variant="ghost" size="icon" className="md:hidden mr-3 -ml-2" onClick={() => setCmsSidebarOpen(!cmsSidebarOpen)}>
                 <Menu className="h-5 w-5" />
             </Button>
            <h1 className="text-lg font-semibold text-foreground">
               {pageTitle}
             </h1>
-            {/* You can add breadcrumbs or other header actions here */}
         </header>
-        <main className="p-6 w-full overflow-y-auto h-[calc(100vh-4rem)]"> {/* Allow content to scroll */}
+        <main className="p-6 w-full overflow-y-auto h-[calc(100vh-4rem)]">
             {children}
         </main>
       </div>
-      {sidebarOpen && <div className="fixed inset-0 bg-black/30 z-30 md:hidden" onClick={() => setSidebarOpen(false)} />}
+
+      {/* CMS Sidebar Overlay - z-index lower than CMS sidebar */}
+      {cmsSidebarOpen && ! (window.innerWidth >= 768) && ( // Only show overlay on mobile when cmsSidebarOpen
+        <div 
+            className="fixed inset-0 bg-black/30 z-20 md:hidden" // z-index below CMS sidebar (z-30) but above content
+            onClick={() => setCmsSidebarOpen(false)} 
+        />
+      )}
     </div>
   )
 }
