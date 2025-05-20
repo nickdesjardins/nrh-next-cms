@@ -91,25 +91,30 @@ export default function ResponsiveNav({
         <div
           className={`flex items-center justify-between w-full text-base font-medium text-foreground rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 ${level > 0 ? 'px-3 py-2' : 'px-3 py-2'}`}
         >
+          {/* Only the label is a clickable link */}
           <Link
             href={item.url}
-            className="flex-grow py-0" // py-0 because parent div has py-2
+            className="py-0 px-0 mr-2 focus:underline focus:outline-none"
             onClick={() => {
-              toggleMobileMenu(); // Always close main mobile menu on any link click
+              toggleMobileMenu();
             }}
           >
             {item.label}
           </Link>
+          {/* If item has children, the rest of the row (whitespace + chevron) is a single button to toggle submenu */}
           {item.children && item.children.length > 0 && (
             <button
-              onClick={(e) => {
-                e.stopPropagation();
-                toggleMobileSubmenu(String(item.id)); // Cast item.id to string
-              }}
-              className="p-2 -mr-2 flex-shrink-0"
+              type="button"
+              className="flex flex-1 items-center h-full cursor-pointer bg-transparent border-none outline-none px-1 justify-end"
+              style={{ minWidth: 0 }}
               aria-expanded={!!expandedMobileItems[String(item.id)]}
               aria-label={`Toggle submenu for ${item.label}`}
+              onClick={e => {
+                e.stopPropagation();
+                toggleMobileSubmenu(String(item.id));
+              }}
             >
+              <span className="flex-1" /> {/* whitespace filler, clickable */}
               <ChevronDownIcon className={`h-5 w-5 transform transition-transform duration-200 ${expandedMobileItems[String(item.id)] ? 'rotate-180' : ''}`} />
             </button>
           )}
