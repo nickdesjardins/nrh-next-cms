@@ -28,7 +28,11 @@ export default async function RootLayout({
 }>) {
 
   const heads = await headers();
-  const serverDeterminedLocale = heads.get('x-user-locale') || DEFAULT_LOCALE_FOR_LAYOUT;
+  const rawHeaderLocale = heads.get('x-user-locale');
+  console.log(`[RootLayout] Middleware-set X-User-Locale header: "${rawHeaderLocale}"`); // <-- ADD THIS LOG
+
+  const serverDeterminedLocale = rawHeaderLocale || DEFAULT_LOCALE_FOR_LAYOUT;
+  console.log(`[RootLayout] serverDeterminedLocale passed to LanguageProvider: "${serverDeterminedLocale}"`); // <-- ADD THIS LOG
 
   return (
     <html lang={serverDeterminedLocale} suppressHydrationWarning>

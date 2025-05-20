@@ -6,7 +6,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 
 export default function LanguageSwitcher() {
   const { currentLocale, setCurrentLocale, availableLanguages, isLoadingLanguages } = useLanguage();
-
+  console.log('[LanguageSwitcher] Rendering with currentLocale from context:', currentLocale, 'IsLoading:', isLoadingLanguages);
+  
   if (isLoadingLanguages || availableLanguages.length <= 1) {
     // Don't show switcher if loading, or only one language (or no languages)
     return null;

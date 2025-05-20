@@ -58,27 +58,22 @@ export async function middleware(request: NextRequest) {
   await supabase.auth.getSession(); // Refresh Supabase session
 
   // ** Language Handling **
-  let currentLocale = request.cookies.get(LANGUAGE_COOKIE_KEY)?.value;
+  const cookieLocale = request.cookies.get(LANGUAGE_COOKIE_KEY)?.value;
+  console.log(`[Middleware] Path: ${request.nextUrl.pathname}, Cookie "${LANGUAGE_COOKIE_KEY}" value from request: "${cookieLocale}"`); // <-- ADD THIS LOG
 
+  let currentLocale = cookieLocale;
   if (!currentLocale || !SUPPORTED_LOCALES.includes(currentLocale)) {
-    // TODO: Add Accept-Language header parsing here for better default
-    // For now, simple default if cookie is invalid or not set
+    console.log(`[Middleware] Cookie locale "${cookieLocale}" invalid or not supported. Falling back to DEFAULT_LOCALE: "${DEFAULT_LOCALE}"`); // <-- ADD THIS LOG
     currentLocale = DEFAULT_LOCALE;
   }
 
-  // Set custom header for Server Components to read the locale
-  requestHeaders.set('X-User-Locale', currentLocale);
+  requestHeaders.set('X-User-Locale', currentLocale!);
+  console.log(`[Middleware] Set "X-User-Locale" header to: "${currentLocale}" for path: ${request.nextUrl.pathname}`); // <-- ADD THIS LOG
 
   // Ensure the cookie is set in the browser for subsequent requests and client-side JS
-  // Note: response.cookies.set can be problematic if `NextResponse.next` was already used to create `response`
-  // without passing the modified request.headers. It's safer to set it on a fresh response if needed or
-  // ensure the response object is consistently managed.
-  // The Supabase client's cookie handling in `set` above should manage `response` updates.
-  // Here we ensure our language cookie is also on the outgoing response.
   if (request.cookies.get(LANGUAGE_COOKIE_KEY)?.value !== currentLocale) {
       response.cookies.set(LANGUAGE_COOKIE_KEY, currentLocale, { path: '/', maxAge: 31536000, sameSite: 'lax' }); // 1 year
   }
-
 
   // ** Auth and CMS Route Protection (from Phase 1, adapted to use updated requestHeaders) **
   const { data: { session } } = await supabase.auth.getSession(); // Use getSession to get session object
@@ -109,8 +104,22 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // Return the potentially modified response (with new cookies and using potentially new request headers for NextResponse.next)
-  return response;
+  // Ensure the final response is based on the modified requestHeaders.
+  // If Supabase or other logic modified `response` to be a redirect, that should take precedence.
+  if (response.headers.get('location')) { // If it's already a redirect
+      return response;
+  }
+
+  // If not a redirect, create a new response that definitely uses the modified headers.
+  // And ensure cookies from the potentially modified `response` (by Supabase) are carried over.
+  const finalResponse = NextResponse.next({
+    request: {
+      headers: requestHeaders, // These include X-User-Locale
+    },
+  });
+  response.cookies.getAll().forEach(cookie => finalResponse.cookies.set(cookie));
+
+  return finalResponse;
 }
 
 export const config = {
