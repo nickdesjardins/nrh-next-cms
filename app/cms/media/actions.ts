@@ -3,14 +3,10 @@
 
 import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
-import type { Media } from "@/utils/supabase/types"; // Your Media type
+import type { Media } from "@/utils/supabase/types";
+import { encodedRedirect } from "@/utils/utils"; // Ensure this is correctly imported
 
-// Type for inserting media, omitting auto-generated fields
-// Ideally, Database['public']['Tables']['media']['Insert']
-type InsertMediaPayload = Omit<Media, 'id' | 'created_at' | 'updated_at' | 'uploader_id'> & {
-    uploader_id: string; // uploader_id is required
-};
-
+// --- recordMediaUpload and updateMediaItem functions to be updated similarly ---
 
 export async function recordMediaUpload(payload: {
   fileName: string;
@@ -23,17 +19,16 @@ export async function recordMediaUpload(payload: {
   const { data: { user }, error: authError } = await supabase.auth.getUser();
 
   if (authError || !user) {
-    return { error: "User not authenticated." };
+    return encodedRedirect("error", "/cms/media", "User not authenticated for media record.");
   }
 
-  // Optional: Role check again, though API route for presigned URL already did one
   const { data: profile } = await supabase
     .from("profiles")
     .select("role")
     .eq("id", user.id)
     .single();
   if (!profile || !["ADMIN", "WRITER"].includes(profile.role)) {
-    return { error: "Forbidden: Insufficient permissions to record media." };
+    return encodedRedirect("error", "/cms/media", "Forbidden: Insufficient permissions to record media.");
   }
 
   const mediaData: InsertMediaPayload = {
@@ -53,35 +48,35 @@ export async function recordMediaUpload(payload: {
 
   if (error) {
     console.error("Error recording media upload:", error);
-    return { error: `Failed to record media: ${error.message}` };
+    return encodedRedirect("error", "/cms/media", `Failed to record media: ${error.message}`);
   }
 
-  revalidatePath("/cms/media"); // Revalidate the media list page
-  // Also revalidate any other paths where media might be displayed if necessary
-
-  return { success: true, media: newMedia as Media };
+  revalidatePath("/cms/media");
+  // Instead of returning success, redirect
+  encodedRedirect("success", "/cms/media", "Media recorded successfully.");
 }
 
 
 export async function updateMediaItem(mediaId: string, payload: { description?: string; file_name?: string }) {
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
-     if (!user) return { error: "User not authenticated." };
+    const mediaEditPath = `/cms/media/${mediaId}/edit`;
+
+    if (!user) return encodedRedirect("error", mediaEditPath, "User not authenticated for media update.");
 
     const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
     if (!profile || !["ADMIN", "WRITER"].includes(profile.role)) {
-        return { error: "Forbidden." };
+        return encodedRedirect("error", mediaEditPath, "Forbidden to update media.");
     }
 
-    // Add updated_at to the allowed fields for update
     const updateData: Partial<Pick<Media, 'description' | 'file_name' | 'updated_at'>> = {};
     if (payload.description !== undefined) updateData.description = payload.description;
     if (payload.file_name !== undefined) updateData.file_name = payload.file_name;
 
     if (Object.keys(updateData).length === 0) {
-        return { error: "No updatable fields provided." };
+        return encodedRedirect("error", mediaEditPath, "No updatable fields provided for media.");
     }
-    updateData.updated_at = new Date().toISOString(); // Manually set if not using DB trigger for media table
+    updateData.updated_at = new Date().toISOString();
 
     const { data, error } = await supabase
         .from("media")
@@ -92,31 +87,34 @@ export async function updateMediaItem(mediaId: string, payload: { description?: 
 
     if (error) {
         console.error("Error updating media item:", error);
-        return { error: error.message };
+        return encodedRedirect("error", mediaEditPath, `Error updating media: ${error.message}`);
     }
     revalidatePath("/cms/media");
-    revalidatePath(`/cms/media/${mediaId}/edit`); // If an edit page exists
-    return { success: true, media: data as Media };
+    revalidatePath(mediaEditPath);
+    encodedRedirect("success", mediaEditPath, "Media item updated successfully.");
 }
 
 
 export async function deleteMediaItem(mediaId: string, objectKey: string) {
-    const supabase = createClient(); // For DB operation
+    const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
-    if (!user) return { error: "User not authenticated." };
+    if (!user) {
+      return encodedRedirect("error", "/cms/media", "User not authenticated.");
+    }
 
     const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
     if (!profile || !["ADMIN", "WRITER"].includes(profile.role)) {
-        return { error: "Forbidden." };
+        return encodedRedirect("error", "/cms/media", "Forbidden: Insufficient permissions.");
     }
 
-    // 1. Delete from R2
     const { DeleteObjectCommand } = await import("@aws-sdk/client-s3");
     const { s3Client } = await import("@/lib/cloudflare/r2-client");
     const R2_BUCKET_NAME = process.env.R2_BUCKET_NAME;
 
-    if (!R2_BUCKET_NAME) return { error: "R2 Bucket not configured." };
+    if (!R2_BUCKET_NAME) {
+      return encodedRedirect("error", "/cms/media", "R2 Bucket not configured for deletion.");
+    }
 
     try {
         const deleteCommand = new DeleteObjectCommand({
@@ -127,17 +125,23 @@ export async function deleteMediaItem(mediaId: string, objectKey: string) {
     } catch (r2Error: any) {
         console.error("Error deleting from R2:", r2Error);
         // Decide if you want to proceed with DB deletion if R2 deletion fails
-        // return { error: `Failed to delete file from storage: ${r2Error.message}` };
+        // It's often better to proceed and log, or handle more gracefully.
+        // For now, we'll let it proceed to DB deletion but the error is logged.
+        // You could redirect with a partial success/warning message here.
     }
 
-    // 2. Delete from Supabase media table
     const { error: dbError } = await supabase.from("media").delete().eq("id", mediaId);
 
     if (dbError) {
         console.error("Error deleting media record from DB:", dbError);
-        return { error: `Failed to delete media record: ${dbError.message}` };
+        return encodedRedirect("error", "/cms/media", `Failed to delete media record: ${dbError.message}`);
     }
 
     revalidatePath("/cms/media");
-    return { success: true };
+    encodedRedirect("success", "/cms/media", "Media item deleted successfully.");
 }
+
+// Type for inserting media
+type InsertMediaPayload = Omit<Media, 'id' | 'created_at' | 'updated_at' | 'uploader_id'> & {
+    uploader_id: string;
+};

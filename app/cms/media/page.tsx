@@ -3,45 +3,20 @@ import React from 'react';
 import { createClient } from "@/utils/supabase/server";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Image as ImageIcon, Trash2, Edit3, MoreHorizontal, FileText } from "lucide-react"; // Added FileText
+import { PlusCircle, Image as ImageIconLucideHost, Trash2, Edit3, MoreHorizontal, FileText } from "lucide-react";
 import type { Media } from "@/utils/supabase/types";
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
+  DropdownMenuItem, // Keep this if other items use it, but DeleteMediaButtonClient will provide its own
   DropdownMenuTrigger,
-  DropdownMenuSeparator, // Added Separator
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { deleteMediaItem } from "./actions";
+// The deleteMediaItem server action is now called by DeleteMediaButtonClient
+// import { deleteMediaItem } from "./actions"; // No longer directly used here for the button itself
 import MediaUploadForm from "./components/MediaUploadForm";
-
-// Client component for delete button with confirmation
-function DeleteMediaButton({ mediaItem }: { mediaItem: Media }) {
-  // Fix: action must be a function accepting FormData
-  const deleteActionWithId = async (formData: FormData) => {
-    await deleteMediaItem(mediaItem.id, mediaItem.object_key);
-  };
-  return (
-    <form action={deleteActionWithId} className="w-full">
-      <button type="submit" className="w-full text-left">
-        <DropdownMenuItem
-          className="text-red-600 hover:!text-red-600 hover:!bg-red-50 dark:hover:!bg-red-700/20"
-          onSelect={(e) => {
-            e.preventDefault();
-            if (!confirm(`Are you sure you want to delete "${mediaItem.file_name}"? This will remove it from storage.`)) {
-                return;
-            }
-            (e.currentTarget as HTMLButtonElement).form?.requestSubmit();
-          }}
-        >
-          <Trash2 className="mr-2 h-4 w-4" />
-          Delete
-        </DropdownMenuItem>
-      </button>
-    </form>
-  );
-}
-
+import MediaImage from "./components/MediaImage";
+import DeleteMediaButtonClient from "./components/DeleteMediaButtonClient"; // Import the new client component
 
 async function getMediaItems(): Promise<Media[]> {
   const supabase = createClient();
@@ -72,7 +47,7 @@ export default async function CmsMediaLibraryPage() {
 
       {mediaItems.length === 0 ? (
         <div className="text-center py-10 border rounded-lg mt-6">
-          <ImageIcon className="mx-auto h-12 w-12 text-muted-foreground" />
+          <ImageIconLucideHost className="mx-auto h-12 w-12 text-muted-foreground" />
           <h3 className="mt-2 text-sm font-medium text-foreground">No media found</h3>
           <p className="mt-1 text-sm text-muted-foreground">
             Upload some files to get started.
@@ -83,18 +58,14 @@ export default async function CmsMediaLibraryPage() {
           {mediaItems.map((item) => (
             <div key={item.id} className="group relative border rounded-lg overflow-hidden shadow-sm aspect-square bg-muted/20">
               {item.file_type?.startsWith("image/") ? (
-                <img
+                <MediaImage
                   src={`${R2_BASE_URL}/${item.object_key}`}
                   alt={item.description || item.file_name}
                   className="h-full w-full object-cover transition-transform group-hover:scale-105"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src = `https://placehold.co/300x300/eee/ccc?text=Error`;
-                    (e.target as HTMLImageElement).classList.add('p-4', 'object-contain'); // Add padding for placeholder
-                  }}
                 />
               ) : (
                 <div className="h-full w-full bg-muted flex flex-col items-center justify-center p-2">
-                  <FileText className="h-12 w-12 text-muted-foreground mb-2" /> {/* Changed to FileText */}
+                  <FileText className="h-12 w-12 text-muted-foreground mb-2" />
                   <p className="text-xs text-center text-muted-foreground truncate w-full" title={item.file_name}>
                     {item.file_name}
                   </p>
@@ -116,7 +87,8 @@ export default async function CmsMediaLibraryPage() {
                             </Link>
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DeleteMediaButton mediaItem={item} />
+                        {/* Use the new Client Component here */}
+                        <DeleteMediaButtonClient mediaItem={item} />
                       </DropdownMenuContent>
                     </DropdownMenu>
                 </div>

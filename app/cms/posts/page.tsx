@@ -12,7 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { MoreHorizontal, PlusCircle, Trash2, Edit3, PenTool, Languages as LanguageIcon } from "lucide-react";
+import { MoreHorizontal, PlusCircle, Edit3, PenTool, Languages as LanguageIcon } from "lucide-react"; // Removed Trash2 as it's in the client component
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,35 +20,11 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { deletePost } from "./actions";
+// deletePost server action is now used by DeletePostButtonClient
 import type { Post, Language } from "@/utils/supabase/types";
 import { getActiveLanguagesServerSide } from "@/utils/supabase/server";
-import LanguageFilterSelect from "@/app/cms/components/LanguageFilterSelect"; // Reusing the component
-
-function DeletePostButton({ postId, postSlug }: { postId: number, postSlug: string }) {
-  // Wrap deletePost to accept FormData as required by the form action
-  const deleteActionWithId = async (formData: FormData) => {
-    await deletePost(postId);
-  };
-  return (
-    <form action={deleteActionWithId} className="w-full">
-      <button type="submit" className="w-full text-left">
-        <DropdownMenuItem
-          className="text-red-600 hover:!text-red-600 hover:!bg-red-50 dark:hover:!bg-red-700/20 cursor-pointer"
-          onSelect={(e) => {
-            e.preventDefault();
-            if (confirm(`Are you sure you want to delete this post? This action cannot be undone.`)) {
-              (e.currentTarget as HTMLButtonElement).form?.requestSubmit();
-            }
-          }}
-        >
-          <Trash2 className="mr-2 h-4 w-4" />
-          Delete
-        </DropdownMenuItem>
-      </button>
-    </form>
-  );
-}
+import LanguageFilterSelect from "@/app/cms/components/LanguageFilterSelect";
+import DeletePostButtonClient from "./components/DeletePostButtonClient"; // Import the new client component
 
 async function getPostsWithDetails(filterLanguageId?: number): Promise<{ post: Post; languageCode: string }[]> {
   const supabase = createClient();
@@ -57,7 +33,7 @@ async function getPostsWithDetails(filterLanguageId?: number): Promise<{ post: P
 
   let query = supabase
     .from("posts")
-    .select("*, languages!inner(code)") // Join to get language code
+    .select("*, languages!inner(code)")
     .order("created_at", { ascending: false });
 
   if (filterLanguageId) {
@@ -83,7 +59,7 @@ async function getPostsWithDetails(filterLanguageId?: number): Promise<{ post: P
 
 interface CmsPostsListPageProps {
   searchParams?: Promise<{
-    lang?: string; // Language ID as a string
+    lang?: string;
     success?: string;
   }>;
 }
@@ -191,7 +167,7 @@ export default async function CmsPostsListPage(props: CmsPostsListPageProps) {
                           </Link>
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DeletePostButton postId={post.id} postSlug={post.slug}/>
+                        <DeletePostButtonClient postId={post.id} postTitle={post.title} />
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>

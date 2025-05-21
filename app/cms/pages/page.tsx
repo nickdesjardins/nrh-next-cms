@@ -12,7 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { MoreHorizontal, PlusCircle, Trash2, Edit3, FileText, Languages as LanguageIcon } from "lucide-react"; // Added LanguageIcon
+import { MoreHorizontal, PlusCircle, Edit3, FileText, Languages as LanguageIcon } from "lucide-react"; // Removed Trash2
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,47 +20,20 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { deletePage } from "./actions";
+// deletePage server action is now used by DeletePageButtonClient
 import type { Page, Language } from "@/utils/supabase/types";
 import { getActiveLanguagesServerSide } from "@/utils/supabase/server";
-import LanguageFilterSelect from "@/app/cms/components/LanguageFilterSelect"; // We will create this
+import LanguageFilterSelect from "@/app/cms/components/LanguageFilterSelect";
+import DeletePageButtonClient from "./components/DeletePageButtonClient"; // Import the new client component
 
-// DeletePageButton remains a form submitting to a server action
-function DeletePageButton({ pageId, pageSlug }: { pageId: number, pageSlug: string }) {
-  // Add pageSlug for revalidation if needed, though deletePage action should handle its own revalidation
-  // Wrap deletePage to match the expected signature for form action
-  const handleDelete = async (formData: FormData) => {
-    await deletePage(pageId);
-  };
-  return (
-    <form action={handleDelete} className="w-full">
-      <button type="submit" className="w-full text-left">
-        <DropdownMenuItem
-          className="text-red-600 hover:!text-red-600 hover:!bg-red-50 dark:hover:!bg-red-700/20 cursor-pointer"
-          onSelect={(e) => { // Use onSelect for better control with DropdownMenu
-            e.preventDefault(); // Prevent default closing
-            if (confirm(`Are you sure you want to delete this page? This action cannot be undone.`)) {
-              (e.currentTarget as HTMLButtonElement).form?.requestSubmit();
-            }
-          }}
-        >
-          <Trash2 className="mr-2 h-4 w-4" />
-          Delete
-        </DropdownMenuItem>
-      </button>
-    </form>
-  );
-}
-
-// Updated to accept a languageId filter
 async function getPagesWithDetails(filterLanguageId?: number): Promise<{ page: Page; languageCode: string }[]> {
   const supabase = createClient();
-  const languages = await getActiveLanguagesServerSide(); // Fetch all for mapping
+  const languages = await getActiveLanguagesServerSide();
   const langMap = new Map(languages.map(l => [l.id, l.code]));
 
   let query = supabase
     .from("pages")
-    .select("*, languages!inner(code)") // Join to get language code directly
+    .select("*, languages!inner(code)")
     .order("created_at", { ascending: false });
 
   if (filterLanguageId) {
@@ -76,10 +49,9 @@ async function getPagesWithDetails(filterLanguageId?: number): Promise<{ page: P
   if (!pagesData) return [];
 
   return pagesData.map(p => {
-    // Ensure 'languages' field from join is correctly accessed
-    const langInfo = p.languages as unknown as { code: string } | null; // Type assertion based on join
+    const langInfo = p.languages as unknown as { code: string } | null;
     return {
-      page: p as Page, // Cast to Page after processing join
+      page: p as Page,
       languageCode: langInfo?.code?.toUpperCase() || langMap.get(p.language_id)?.toUpperCase() || 'N/A',
     };
   });
@@ -87,8 +59,8 @@ async function getPagesWithDetails(filterLanguageId?: number): Promise<{ page: P
 
 interface CmsPagesListPageProps {
   searchParams?: Promise<{
-    lang?: string; // Language ID as a string from query param
-    success?: string; // For success messages
+    lang?: string;
+    success?: string;
   }>;
 }
 
@@ -97,7 +69,6 @@ export default async function CmsPagesListPage(props: CmsPagesListPageProps) {
   const allLanguages = await getActiveLanguagesServerSide();
   const selectedLangId = searchParams?.lang ? parseInt(searchParams.lang, 10) : undefined;
 
-  // Validate selectedLangId if it exists
   const isValidLangId = selectedLangId ? allLanguages.some(l => l.id === selectedLangId) : true;
   const filterLangId = isValidLangId ? selectedLangId : undefined;
 
@@ -112,7 +83,7 @@ export default async function CmsPagesListPage(props: CmsPagesListPageProps) {
           <LanguageFilterSelect
             allLanguages={allLanguages}
             currentFilterLangId={filterLangId}
-            basePath="/cms/pages" // Path for constructing filter URLs
+            basePath="/cms/pages"
           />
           <Link href="/cms/pages/new">
             <Button variant="default">
@@ -197,7 +168,7 @@ export default async function CmsPagesListPage(props: CmsPagesListPageProps) {
                           </Link>
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DeletePageButton pageId={page.id} pageSlug={page.slug} />
+                        <DeletePageButtonClient pageId={page.id} pageTitle={page.title} />
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
