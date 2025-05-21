@@ -3,7 +3,6 @@ import React from 'react';
 import { getSsgSupabaseClient } from "@/utils/supabase/ssg-client"; // Correct import
 import { notFound } from "next/navigation";
 import type { Metadata, ResolvingMetadata } from 'next';
-import type { Page as PageType, Block as BlockType, Language } from "@/utils/supabase/types";
 import PageClientContent from "./PageClientContent";
 import { getPageDataBySlug } from "./page.utils"; // This will now use getSsgSupabaseClient internally
 
