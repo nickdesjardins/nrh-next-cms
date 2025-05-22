@@ -27,7 +27,7 @@ export default function ImageBlockSelector({ content, onChange }: ImageBlockSele
   const [isLoadingLibrary, setIsLoadingLibrary] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const supabase = createBrowserClient();
+  const [supabase] = useState(() => createBrowserClient());
 
   // Effect to fetch media details (like object_key) if only media_id is present in content
   useEffect(() => {
