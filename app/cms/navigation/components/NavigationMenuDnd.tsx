@@ -559,21 +559,39 @@ export default function NavigationMenuDnd({ menuKey, languageCode, initialItems 
     return itemsToRender.map((item) => {
       if (!item) return null;
       
+      const itemInfo = findItemDeep(hierarchicalItems, item.id); // Get fresh info for index calculation
+
+      // Condition 1: Projected to be the SIBLING AFTER this item
       const isProjectedSiblingAfterThis = projected &&
-        projected.overId === item.id &&
         activeId && activeId !== item.id &&
-        projected.parentId === (item.parent_id ?? null) &&
-        projected.index === (findItemDeep(hierarchicalItems, item.id)?.index ?? -1) + 1;
-        
+        projected.overId === item.id && // 'item' is what we are hovering/dragging past
+        projected.parentId === (item.parent_id ?? null) && // Target parent is this item's parent
+        itemInfo && projected.index === itemInfo.index + 1; // Target index is right after this item
+
+      // Condition 2: Projected to be the FIRST CHILD of this item
+      // This is for non-indent specific drops (e.g. from getProjectedDropPosition)
       const isProjectedAsFirstChildOfThis = projected &&
-        projected.parentId === item.id &&
         activeId && activeId !== item.id &&
-        projected.index === 0;
+        projected.parentId === item.id && // This item is the target parent
+        projected.index === 0 &&
+        // Ensure this isn't the pure indent case where item has no children (which is handled by LastChildIndent)
+        !(projected.overId === item.id && item.children.length === 0 && projected.index === 0);
+
+
+      // Condition 3: Projected to be the LAST CHILD of this item (specifically for pure horizontal indent)
+      // This is when 'item' is the 'itemAbove' from the indent logic, which becomes the parent.
+      const isProjectedAsLastChildOfThisIndent = projected &&
+        activeId && activeId !== item.id &&
+        projected.parentId === item.id && // This item is the target parent
+        projected.overId === item.id &&    // Crucially, the 'overId' points to this item (from pure indent logic)
+        projected.index === item.children.length; // Target index is at the end of current children
 
       return (
         <React.Fragment key={item.id}>
           <SortableNavItem item={item} />
-          {/* Projection line for dropping *after* this item (as sibling) or as its first child */}
+
+          {/* Render projection line if it's a SIBLING AFTER this, OR if it's the FIRST CHILD of this (non-indent case) */}
+          {/* This line appears directly under 'item', before its children are rendered. */}
           {(isProjectedSiblingAfterThis || isProjectedAsFirstChildOfThis) && (
              <TableRow style={{opacity: 0.5}} className="pointer-events-none !p-0 h-1">
                 <TableCell style={{ paddingLeft: `${projected.depth * INDENTATION_WIDTH + 16}px`, height: '2px' }} className="py-0 border-none">
@@ -582,7 +600,19 @@ export default function NavigationMenuDnd({ menuKey, languageCode, initialItems 
                 <TableCell colSpan={5} className="py-0 border-none h-1"><div className="bg-primary h-0.5 w-full rounded-full"></div></TableCell>
              </TableRow>
           )}
+
           {item.children && item.children.length > 0 && renderItemsRecursive(item.children)}
+
+          {/* Render projection line if it's the LAST CHILD of this (due to indent) */}
+          {/* This line appears after all of 'item's children, effectively at the bottom of 'item's group. */}
+          {isProjectedAsLastChildOfThisIndent && (
+             <TableRow style={{opacity: 0.5}} className="pointer-events-none !p-0 h-1">
+                <TableCell style={{ paddingLeft: `${projected.depth * INDENTATION_WIDTH + 16}px`, height: '2px' }} className="py-0 border-none">
+                    <div className="bg-primary h-0.5 w-full rounded-full"></div>
+                </TableCell>
+                <TableCell colSpan={5} className="py-0 border-none h-1"><div className="bg-primary h-0.5 w-full rounded-full"></div></TableCell>
+             </TableRow>
+          )}
         </React.Fragment>
       );
     });
