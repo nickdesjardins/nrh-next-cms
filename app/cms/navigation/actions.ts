@@ -5,18 +5,8 @@ import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { NavigationItem, MenuLocation, Language } from "@/utils/supabase/types";
-import { v4 as uuidv4 } from 'uuid'; // For generating translation_group_id
-
-type UpsertNavigationItemPayload = {
-  language_id: number;
-  menu_key: MenuLocation;
-  label: string;
-  url: string;
-  parent_id?: number | null;
-  order?: number;
-  page_id?: number | null;
-  translation_group_id: string; // Now required
-};
+import { v4 as uuidv4 } from 'uuid';
+import { encodedRedirect } from "@/utils/utils";
 
 // Helper to check admin role
 async function isAdminUser(supabase: ReturnType<typeof createClient>): Promise<boolean> {
@@ -30,10 +20,22 @@ async function isAdminUser(supabase: ReturnType<typeof createClient>): Promise<b
   return profile?.role === "ADMIN";
 }
 
+type UpsertNavigationItemPayload = {
+  language_id: number;
+  menu_key: MenuLocation;
+  label: string;
+  url: string;
+  parent_id?: number | null;
+  order?: number;
+  page_id?: number | null;
+  translation_group_id: string;
+};
+
 // Helper to generate a placeholder label for new translations
 function generatePlaceholderLabel(originalLabel: string, langCode: string): string {
   return `[${langCode.toUpperCase()}] ${originalLabel}`;
 }
+
 
 export async function createNavigationItem(formData: FormData) {
   const supabase = createClient();
@@ -44,12 +46,15 @@ export async function createNavigationItem(formData: FormData) {
 
   const fromGroupId = formData.get("from_translation_group_id") as string | null;
   const targetLangIdForTranslation = formData.get("target_language_id_for_translation") as string | null;
+  const initialMenuKeyFromParam = formData.get("menu_key_from_param") as MenuLocation | null; // Capture if passed for new translation
+  const originalLabelFromParam = formData.get("original_label_from_param") as string | null;
+
 
   const rawFormData = {
     label: formData.get("label") as string,
     url: formData.get("url") as string,
     language_id: parseInt(formData.get("language_id") as string, 10),
-    menu_key: formData.get("menu_key") as MenuLocation,
+    menu_key: (initialMenuKeyFromParam || formData.get("menu_key")) as MenuLocation,
     order: parseInt(formData.get("order") as string, 10) || 0,
     parent_id: formData.get("parent_id") && formData.get("parent_id") !== "___NONE___" ? parseInt(formData.get("parent_id") as string, 10) : null,
     page_id: formData.get("page_id") && formData.get("page_id") !== "___NONE___" ? parseInt(formData.get("page_id") as string, 10) : null,
@@ -59,9 +64,6 @@ export async function createNavigationItem(formData: FormData) {
     return { error: "Missing required fields: label, URL, language, or menu key." };
   }
 
-  // Determine translation_group_id
-  // If 'from_group_id' is provided, it means we are creating a translation for an existing group.
-  // Otherwise, it's a new conceptual item, so generate a new group ID.
   const translationGroupId = fromGroupId || uuidv4();
 
   const navData: UpsertNavigationItemPayload = {
@@ -82,31 +84,26 @@ export async function createNavigationItem(formData: FormData) {
 
   let successMessage = "Navigation item created successfully.";
 
-  // If this was the first item in a new group (i.e., fromGroupId was null),
-  // and it's NOT a targeted translation creation (targetLangIdForTranslation is null),
-  // then create placeholders for other languages.
   if (newNavItem && !fromGroupId && !targetLangIdForTranslation) {
     const { data: languages, error: langError } = await supabase
       .from("languages")
       .select("id, code")
-      .neq("id", newNavItem.language_id); // Get other active languages
+      .neq("id", newNavItem.language_id); 
 
     if (langError) {
       console.error("Error fetching other languages for nav item auto-creation:", langError);
     } else if (languages && languages.length > 0) {
       let placeholderCreations = 0;
       for (const lang of languages) {
-        // For placeholders, URL might be '#', page_id null, parent_id null initially.
-        // User would need to edit these.
         const placeholderNavItemData: UpsertNavigationItemPayload = {
           language_id: lang.id,
           menu_key: newNavItem.menu_key,
           label: generatePlaceholderLabel(newNavItem.label, lang.code),
-          url: '#', // Placeholder URL
-          parent_id: null, // Placeholders are top-level initially, or require complex parent mapping
-          order: newNavItem.order, // Or default to 0 for placeholders
+          url: '#', 
+          parent_id: null, 
+          order: newNavItem.order, 
           page_id: null,
-          translation_group_id: newNavItem.translation_group_id, // Use same group ID
+          translation_group_id: newNavItem.translation_group_id, 
         };
         const { error: placeholderError } = await supabase.from("navigation_items").insert(placeholderNavItemData);
         if (placeholderError) {
@@ -137,9 +134,6 @@ export async function updateNavigationItem(itemId: number, formData: FormData) {
   if (!(await isAdminUser(supabase))) {
     return { error: "Unauthorized: Admin role required." };
   }
-
-  // Fetch existing item to ensure translation_group_id is not changed
-  // and language_id is not changed (editing a specific language version)
   const { data: existingItem, error: fetchError } = await supabase
     .from("navigation_items")
     .select("translation_group_id, language_id")
@@ -191,6 +185,11 @@ export async function deleteNavigationItem(itemId: number) {
   const supabase = createClient();
 
   if (!(await isAdminUser(supabase))) {
+    // Not returning an object here for DropdownMenuItem form action
+    // It relies on redirect or throwing an error.
+    // For client components calling this directly, an error object would be better.
+    // Consider how this action is called.
+    console.error("Unauthorized delete attempt for nav item:", itemId);
     return { error: "Unauthorized: Admin role required." };
   }
 
@@ -208,8 +207,52 @@ export async function deleteNavigationItem(itemId: number) {
   redirect("/cms/navigation?success=Item deleted successfully");
 }
 
-export async function getNavigationMenu(menuKey: MenuLocation, languageCode: string): Promise<NavigationItem[]> {
+
+export async function updateNavigationStructureBatch(
+  itemsToUpdate: Array<{ id: number; order: number; parent_id: number | null; }>
+) {
   const supabase = createClient();
+  if (!(await isAdminUser(supabase))) {
+    return { error: "Unauthorized: Admin role required for batch update." };
+  }
+
+  if (!itemsToUpdate || itemsToUpdate.length === 0) {
+    return { error: "No items provided for update." };
+  }
+
+  // Supabase JS v2 doesn't have built-in transactions for multiple upserts like this directly.
+  // You'd typically loop and perform individual updates.
+  // If one fails, others might have succeeded. Consider rollback strategy if needed (more complex).
+  let CmsNavigationListPageFailedUpdates = 0;
+  for (const item of itemsToUpdate) {
+    const { error } = await supabase
+      .from("navigation_items")
+      .update({
+        order: item.order,
+        parent_id: item.parent_id,
+        updated_at: new Date().toISOString(), // Also update updated_at
+      })
+      .eq("id", item.id);
+
+    if (error) {
+      console.error(`Error updating nav item ${item.id}:`, error.message);
+      CmsNavigationListPageFailedUpdates++;
+    }
+  }
+
+  if (CmsNavigationListPageFailedUpdates > 0) {
+    return { error: `Failed to update ${CmsNavigationListPageFailedUpdates} item(s). Some changes might not have been saved.` };
+  }
+
+  revalidatePath("/cms/navigation");
+  // No redirect needed here, as this is likely called via client-side transition
+  return { success: true, message: "Navigation structure updated." };
+}
+
+
+// Fetches navigation items for a specific menu and language (used by public site Header/Footer)
+export async function getNavigationMenu(menuKey: MenuLocation, languageCode: string): Promise<NavigationItem[]> {
+  const supabase = createClient(); // server client
 
   const { data: language, error: langError } = await supabase
     .from("languages")
@@ -218,7 +261,7 @@ export async function getNavigationMenu(menuKey: MenuLocation, languageCode: str
     .single();
 
   if (langError || !language) {
-    console.error(`Error fetching language ID for code ${languageCode}:`, langError);
+    console.error(`Error fetching language ID for code ${languageCode} in getNavigationMenu:`, langError);
     return [];
   }
 
@@ -226,16 +269,16 @@ export async function getNavigationMenu(menuKey: MenuLocation, languageCode: str
 
   const { data: items, error: itemsError } = await supabase
     .from("navigation_items")
-    .select("*") // Select all fields, including translation_group_id
+    .select("*, pages(slug)") // Select all fields, including translation_group_id and linked page slug
     .eq("menu_key", menuKey)
     .eq("language_id", languageId)
-    .order("parent_id", { nullsFirst: true }) // Ensure parents come before children for easier hierarchy building
+    .order("parent_id", { nullsFirst: true })
     .order("order");
 
   if (itemsError) {
     console.error(`Error fetching navigation items for ${menuKey} (${languageCode}):`, itemsError);
     return [];
   }
-
-  return items || [];
+  // @ts-ignore
+  return (items || []).map(item => ({...item, id: Number(item.id)}));
 }
