@@ -24,9 +24,16 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 interface LanguageProviderProps {
   children: ReactNode;
   serverLocale?: string; // Locale determined on the server (from X-User-Locale header)
+  initialAvailableLanguages?: Language[]; // Languages fetched on the server
+  initialDefaultLanguage?: Language | null; // Default language determined on the server
 }
 
-export const LanguageProvider = ({ children, serverLocale }: LanguageProviderProps) => {
+export const LanguageProvider = ({
+  children,
+  serverLocale,
+  initialAvailableLanguages,
+  initialDefaultLanguage
+}: LanguageProviderProps) => {
   const router = useRouter();
 
   const [currentLocale, _setCurrentLocale] = useState<string>(() => {
@@ -47,25 +54,28 @@ export const LanguageProvider = ({ children, serverLocale }: LanguageProviderPro
     return initialVal;
   });
 
-  const [availableLanguages, setAvailableLanguages] = useState<Language[]>([]);
-  const [defaultLanguage, setDefaultLanguage] = useState<Language | null>(null);
-  const [isLoadingLanguages, setIsLoadingLanguages] = useState(true);
+  const [availableLanguages, setAvailableLanguages] = useState<Language[]>(initialAvailableLanguages || []);
+  const [defaultLanguage, setDefaultLanguage] = useState<Language | null>(initialDefaultLanguage || null);
+  // isLoadingLanguages is true if server didn't provide initial languages, or if they were empty.
+  const [isLoadingLanguages, setIsLoadingLanguages] = useState(!initialAvailableLanguages || initialAvailableLanguages.length === 0);
 
   useEffect(() => {
-    const fetchAndSetLanguages = async () => {
-      // Only set loading true if languages haven't been fetched yet or are empty
-      // to prevent flicker/disappearance on refresh if languages are already known.
-      if (availableLanguages.length === 0) {
-        setIsLoadingLanguages(true);
+    const initializeLanguages = async () => {
+      let languagesToUse = initialAvailableLanguages;
+      let defaultLangToUse = initialDefaultLanguage;
+
+      // If server didn't provide languages, or they were empty, fetch client-side as a fallback.
+      if (!languagesToUse || languagesToUse.length === 0) {
+        if (!isLoadingLanguages) setIsLoadingLanguages(true); // Set loading if we are about to fetch
+        languagesToUse = await getActiveLanguagesClientSide();
+        setAvailableLanguages(languagesToUse);
+        defaultLangToUse = languagesToUse.find(lang => lang.is_default) || languagesToUse[0] || null;
+        setDefaultLanguage(defaultLangToUse);
       }
-      const fetchedLanguages = await getActiveLanguagesClientSide();
-      setAvailableLanguages(fetchedLanguages);
-
-      const dbDefaultLang = fetchedLanguages.find(lang => lang.is_default) || fetchedLanguages[0] || null;
-      setDefaultLanguage(dbDefaultLang);
-
+      
+      // Determine effective locale based on serverLocale, cookies, localStorage, or DB default
       let determinedEffectiveLocale = DEFAULT_FALLBACK_LOCALE;
-      const isValidLang = (lc: string | undefined) => lc && fetchedLanguages.some(lang => lang.code === lc);
+      const isValidLang = (lc: string | undefined) => lc && languagesToUse && languagesToUse.some(lang => lang.code === lc);
 
       if (isValidLang(serverLocale)) {
         determinedEffectiveLocale = serverLocale!;
@@ -77,18 +87,20 @@ export const LanguageProvider = ({ children, serverLocale }: LanguageProviderPro
           const storageVal = typeof window !== 'undefined' ? localStorage.getItem(LANGUAGE_STORAGE_KEY) : null;
           if (isValidLang(storageVal || undefined)) {
             determinedEffectiveLocale = storageVal!;
-          } else if (dbDefaultLang && isValidLang(dbDefaultLang.code)) {
-            determinedEffectiveLocale = dbDefaultLang.code;
-          } else if (fetchedLanguages.length > 0 && isValidLang(fetchedLanguages[0].code)) {
-            determinedEffectiveLocale = fetchedLanguages[0].code;
+          } else if (defaultLangToUse && isValidLang(defaultLangToUse.code)) {
+            determinedEffectiveLocale = defaultLangToUse.code;
+          } else if (languagesToUse && languagesToUse.length > 0 && isValidLang(languagesToUse[0].code)) {
+            determinedEffectiveLocale = languagesToUse[0].code;
           }
         }
       }
       
-      if (!fetchedLanguages.some(lang => lang.code === determinedEffectiveLocale)) {
-          if (fetchedLanguages.length > 0) {
-              determinedEffectiveLocale = fetchedLanguages[0].code;
+      // Final check to ensure determined locale is actually in the available list
+      if (languagesToUse && !languagesToUse.some(lang => lang.code === determinedEffectiveLocale)) {
+          if (languagesToUse.length > 0) {
+              determinedEffectiveLocale = languagesToUse[0].code;
           } else {
+              // This case should be rare if getActiveLanguagesClientSide always returns something or errors
               determinedEffectiveLocale = DEFAULT_FALLBACK_LOCALE;
           }
       }
@@ -100,25 +112,28 @@ export const LanguageProvider = ({ children, serverLocale }: LanguageProviderPro
       }
       Cookies.set(LANGUAGE_COOKIE_KEY, determinedEffectiveLocale, { path: '/', expires: 365, sameSite: 'Lax' });
       
-      setIsLoadingLanguages(false);
+      setIsLoadingLanguages(false); // Done loading/initializing
     };
 
-    fetchAndSetLanguages();
-  }, [serverLocale]);
+    initializeLanguages();
+  }, [serverLocale, initialAvailableLanguages, initialDefaultLanguage, isLoadingLanguages]); // Added isLoadingLanguages to deps
 
   const setCurrentLocaleCallback = useCallback((localeCode: string) => {
     let localeToSet = DEFAULT_FALLBACK_LOCALE;
     let isValidForRouterRefresh = false;
+    
+    const currentAvailableLangs = availableLanguages; // Use state value which might have been updated by client-side fetch
 
-    if (availableLanguages.some(lang => lang.code === localeCode)) {
+    if (currentAvailableLangs.some(lang => lang.code === localeCode)) {
       localeToSet = localeCode;
       isValidForRouterRefresh = true;
-    } else if (availableLanguages.length > 0) {
-      const dbDefault = availableLanguages.find(lang => lang.is_default);
-      localeToSet = dbDefault?.code || availableLanguages[0]?.code || DEFAULT_FALLBACK_LOCALE;
+    } else if (currentAvailableLangs.length > 0) {
+      const dbDefault = currentAvailableLangs.find(lang => lang.is_default);
+      localeToSet = dbDefault?.code || currentAvailableLangs[0]?.code || DEFAULT_FALLBACK_LOCALE;
       isValidForRouterRefresh = true;
     } else {
-      isValidForRouterRefresh = true; // Still attempt refresh with fallback
+      // No available languages known, still attempt refresh with fallback
+      isValidForRouterRefresh = true;
     }
 
     _setCurrentLocale(localeToSet);
