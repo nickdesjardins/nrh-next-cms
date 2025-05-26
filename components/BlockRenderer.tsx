@@ -1,5 +1,6 @@
 // app/components/BlockRenderer.tsx
 import React from 'react';
+import Image from 'next/image'; // Import next/image
 import type { Block, ImageBlockContent, TextBlockContent, HeadingBlockContent, ButtonBlockContent, PostsGridBlockContent } from "@/utils/supabase/types"; // Added PostsGridBlockContent
 import { Button as UIButton } from '@/components/ui/button';
 import PostsGridBlock from './blocks/PostsGridBlock'; // Added import for PostsGridBlock
@@ -50,12 +51,17 @@ const BlockRenderer: React.FC<BlockRendererProps> = ({ blocks, languageId }) => 
             const displayImageUrl = `${R2_BASE_URL}/${imageContent.object_key}`;
             return (
               <figure key={block.id} className="my-6 text-center">
-                <img
-                  src={displayImageUrl}
-                  alt={imageContent.alt_text || "Uploaded image"}
-                  className="max-w-full h-auto rounded-md border mx-auto"
-                  loading="lazy"
-                />
+                <div
+                  className="relative mx-auto max-w-full aspect-video" // Default aspect ratio
+                >
+                  <Image
+                    src={displayImageUrl}
+                    alt={imageContent.alt_text || "Uploaded image"}
+                    fill
+                    style={{ objectFit: 'contain' }}
+                    className="rounded-md border"
+                  />
+                </div>
                 {imageContent.caption && (
                   <figcaption className="text-sm text-muted-foreground mt-2">
                     {imageContent.caption}

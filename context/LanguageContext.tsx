@@ -66,7 +66,6 @@ export const LanguageProvider = ({
 
       // If server didn't provide languages, or they were empty, fetch client-side as a fallback.
       if (!languagesToUse || languagesToUse.length === 0) {
-        if (!isLoadingLanguages) setIsLoadingLanguages(true); // Set loading if we are about to fetch
         languagesToUse = await getActiveLanguagesClientSide();
         setAvailableLanguages(languagesToUse);
         defaultLangToUse = languagesToUse.find(lang => lang.is_default) || languagesToUse[0] || null;
@@ -116,7 +115,7 @@ export const LanguageProvider = ({
     };
 
     initializeLanguages();
-  }, [serverLocale, initialAvailableLanguages, initialDefaultLanguage, isLoadingLanguages]); // Added isLoadingLanguages to deps
+  }, [serverLocale, initialAvailableLanguages, initialDefaultLanguage]);
 
   const setCurrentLocaleCallback = useCallback((localeCode: string) => {
     let localeToSet = DEFAULT_FALLBACK_LOCALE;

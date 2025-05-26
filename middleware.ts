@@ -66,33 +66,38 @@ export async function middleware(request: NextRequest) {
   const { data: { user }, error: userError } = await supabase.auth.getUser(); // Use getUser for revalidation
   const { pathname } = request.nextUrl;
 
-  if (pathname.startsWith('/cms')) {
+  // CMS route protection
+  if (pathname.startsWith('/cms')) { // Ensure this check is broad enough for all CMS paths
     if (userError || !user) { // Check for error or no user
       // No console.log needed here for normal unauthenticated access, redirect is sufficient
       return NextResponse.redirect(new URL(`/sign-in?redirect=${pathname}`, request.url));
     }
 
-    // User is authenticated, now check profile for role
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id) // Use user.id from getUser()
-      .single<Pick<Profile, 'role'>>();
-
-    if (profileError || !profile) {
-      console.error(`Middleware: Profile error for user ${user.id} accessing ${pathname}. Error: ${profileError?.message}. Redirecting to unauthorized.`);
-      return NextResponse.redirect(new URL('/unauthorized?error=profile_issue', request.url));
-    }
-
-    const userRole = profile.role as UserRole;
     const requiredRoles = getRequiredRolesForPath(pathname);
 
-    if (requiredRoles && !requiredRoles.includes(userRole)) {
-      console.warn(`Middleware: User ${user.id} (Role: ${userRole}) denied access to ${pathname}. Required: ${requiredRoles.join(' OR ')}. Redirecting to unauthorized.`);
-      return NextResponse.redirect(new URL(`/unauthorized?path=${pathname}&required=${requiredRoles.join(',')}`, request.url));
+    // Only fetch profile and check roles if the path actually has role restrictions
+    if (requiredRoles && requiredRoles.length > 0) {
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id) // Use user.id from getUser()
+        .single<Pick<Profile, 'role'>>();
+
+      if (profileError || !profile) {
+        console.error(`Middleware: Profile error for user ${user.id} accessing ${pathname}. Error: ${profileError?.message}. Redirecting to unauthorized.`);
+        return NextResponse.redirect(new URL('/unauthorized?error=profile_issue', request.url));
+      }
+
+      const userRole = profile.role as UserRole;
+      if (!requiredRoles.includes(userRole)) {
+        console.warn(`Middleware: User ${user.id} (Role: ${userRole}) denied access to ${pathname}. Required: ${requiredRoles.join(' OR ')}. Redirecting to unauthorized.`);
+        return NextResponse.redirect(new URL(`/unauthorized?path=${pathname}&required=${requiredRoles.join(',')}`, request.url));
+      }
+      // If user has the required role, allow access
     }
-    // If user has the required role, allow access (NextResponse.next() is handled later)
-    // No console.log needed for successful access
+    // If requiredRoles is null or empty, or if user has the role (after check), allow access.
+    // No console.log needed for successful access to such paths.
+    // NextResponse.next() is handled later.
   }
 
   // If response is already a redirect (e.g., from CMS auth checks), return it.
@@ -123,7 +128,7 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|auth/.*|sign-in|sign-up|forgot-password|unauthorized|api/auth/.*).*)',
+    '/((?!_next/static|_next/image|favicon.ico|auth/.*|sign-in|sign-up|forgot-password|unauthorized|api/auth/.*|api/revalidate).*),',
     '/cms/:path*',
   ],
 };

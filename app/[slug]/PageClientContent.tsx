@@ -12,32 +12,34 @@ interface PageClientContentProps {
   initialPageData: (PageType & { blocks: BlockType[]; language_code: string; language_id: number; translation_group_id: string; }) | null;
   currentSlug: string; // The slug of the currently viewed page
   children: React.ReactNode;
+  translatedSlugs?: { [key: string]: string };
 }
 
 // Fetches the slug for a given translation_group_id and target language_code
-async function getSlugForTranslatedPage(
-  translationGroupId: string,
-  targetLanguageCode: string,
-  supabase: ReturnType<typeof createClient>
-): Promise<string | null> {
-  const { data: langInfo, error: langErr } = await supabase
-    .from("languages").select("id").eq("code", targetLanguageCode).single();
-  if (langErr || !langInfo) return null;
+// This function is no longer needed here as slugs are pre-fetched.
+// async function getSlugForTranslatedPage(
+//   translationGroupId: string,
+//   targetLanguageCode: string,
+//   supabase: ReturnType<typeof createClient>
+// ): Promise<string | null> {
+//   const { data: langInfo, error: langErr } = await supabase
+//     .from("languages").select("id").eq("code", targetLanguageCode).single();
+//   if (langErr || !langInfo) return null;
 
-  const { data: page, error: pageErr } = await supabase
-    .from("pages")
-    .select("slug")
-    .eq("translation_group_id", translationGroupId)
-    .eq("language_id", langInfo.id)
-    .eq("status", "published")
-    .single();
+//   const { data: page, error: pageErr } = await supabase
+//     .from("pages")
+//     .select("slug")
+//     .eq("translation_group_id", translationGroupId)
+//     .eq("language_id", langInfo.id)
+//     .eq("status", "published")
+//     .single();
   
-  if (pageErr || !page) return null;
-  return page.slug;
-}
+//   if (pageErr || !page) return null;
+//   return page.slug;
+// }
 
 
-export default function PageClientContent({ initialPageData, currentSlug, children }: PageClientContentProps) {
+export default function PageClientContent({ initialPageData, currentSlug, children, translatedSlugs }: PageClientContentProps) {
   const { currentLocale, isLoadingLanguages } = useLanguage();
   const router = useRouter();
   // currentPageData is the data for the slug currently in the URL.
@@ -46,25 +48,22 @@ export default function PageClientContent({ initialPageData, currentSlug, childr
   const [isLoadingTargetLang, setIsLoadingTargetLang] = useState(false);
 
   useEffect(() => {
-    if (currentLocale && currentPageData && currentPageData.language_code !== currentLocale) {
+    if (currentLocale && currentPageData && currentPageData.language_code !== currentLocale && translatedSlugs) {
       // Current page's language doesn't match context, try to navigate to translated version
       setIsLoadingTargetLang(true);
-      const fetchAndNavigate = async () => {
-        const targetSlug = await getSlugForTranslatedPage(currentPageData.translation_group_id, currentLocale, createClient());
-        if (targetSlug && targetSlug !== currentSlug) {
-          router.push(`/${targetSlug}`); // Navigate to the translated slug's URL
-        } else if (targetSlug && targetSlug === currentSlug) {
-          // Already on the correct page for the selected language, do nothing or refresh data if needed
-          // This case implies initialPageData was for the currentLocale if they match.
-        } else {
-          console.warn(`No published translation found for group ${currentPageData.translation_group_id} in language ${currentLocale}`);
-          // Optionally, provide feedback to the user that translation is not available
-        }
-        setIsLoadingTargetLang(false);
-      };
-      fetchAndNavigate();
+      const targetSlug = translatedSlugs[currentLocale];
+      
+      if (targetSlug && targetSlug !== currentSlug) {
+        router.push(`/${targetSlug}`); // Navigate to the translated slug's URL
+      } else if (targetSlug && targetSlug === currentSlug) {
+        // Already on the correct page for the selected language, do nothing or refresh data if needed
+      } else {
+        console.warn(`No published translation found for group ${currentPageData.translation_group_id} in language ${currentLocale} using pre-fetched slugs.`);
+        // Optionally, provide feedback to the user that translation is not available
+      }
+      setIsLoadingTargetLang(false);
     }
-  }, [currentLocale, currentPageData, currentSlug, router, initialPageData]); // Rerun if initialPageData changes (e.g. after revalidation)
+  }, [currentLocale, currentPageData, currentSlug, router, initialPageData, translatedSlugs]); // Rerun if initialPageData changes (e.g. after revalidation)
 
   // Update HTML lang attribute based on the *actually displayed* content's language
   useEffect(() => {

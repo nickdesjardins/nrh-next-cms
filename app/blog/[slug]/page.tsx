@@ -114,10 +114,29 @@ export default async function DynamicPostPage({ params: paramsPromise }: PostPag
     notFound();
   }
 
+  let translatedSlugs: { [key: string]: string } = {};
+  if (initialPostData.translation_group_id) {
+    const supabase = getSsgSupabaseClient(); // Use SSG client
+    const { data: translations } = await supabase
+      .from("posts")
+      .select("slug, languages!inner(code)")
+      .eq("translation_group_id", initialPostData.translation_group_id)
+      .eq("status", "published")
+      .or(`published_at.is.null,published_at.lte.${new Date().toISOString()}`);
+
+    if (translations) {
+      translations.forEach((translation: any) => {
+        if (translation.languages && typeof translation.languages.code === 'string' && translation.slug) {
+          translatedSlugs[translation.languages.code] = translation.slug;
+        }
+      });
+    }
+  }
+
   const postBlocks = initialPostData ? <BlockRenderer blocks={initialPostData.blocks} languageId={initialPostData.language_id} /> : null;
 
   return (
-    <PostClientContent initialPostData={initialPostData} currentSlug={params.slug}>
+    <PostClientContent initialPostData={initialPostData} currentSlug={params.slug} translatedSlugs={translatedSlugs}>
       {postBlocks}
     </PostClientContent>
   );

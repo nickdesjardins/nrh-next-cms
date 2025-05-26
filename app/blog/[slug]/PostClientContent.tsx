@@ -12,39 +12,41 @@ interface PostClientContentProps {
   initialPostData: (PostType & { blocks: BlockType[]; language_code: string; language_id: number; translation_group_id: string; }) | null;
   currentSlug: string; // The slug of the currently viewed page/post
   children: React.ReactNode;
+  translatedSlugs?: { [key: string]: string };
 }
 
 // Fetches the slug for a given translation_group_id and target language_code
-async function getSlugForTranslatedPost(
-  translationGroupId: string,
-  targetLanguageCode: string,
-  supabase: ReturnType<typeof createClient>
-): Promise<string | null> {
-  const { data: langInfo, error: langErr } = await supabase
-    .from("languages").select("id").eq("code", targetLanguageCode).single();
+// This function is no longer needed here as slugs are pre-fetched.
+// async function getSlugForTranslatedPost(
+//   translationGroupId: string,
+//   targetLanguageCode: string,
+//   supabase: ReturnType<typeof createClient>
+// ): Promise<string | null> {
+//   const { data: langInfo, error: langErr } = await supabase
+//     .from("languages").select("id").eq("code", targetLanguageCode).single();
 
-  if (langErr || !langInfo) {
-    console.warn(`Client (Posts): Target language '${targetLanguageCode}' not found for translation group '${translationGroupId}'.`);
-    return null;
-  }
+//   if (langErr || !langInfo) {
+//     console.warn(`Client (Posts): Target language '${targetLanguageCode}' not found for translation group '${translationGroupId}'.`);
+//     return null;
+//   }
 
-  const { data: post, error: postErr } = await supabase
-    .from("posts")
-    .select("slug")
-    .eq("translation_group_id", translationGroupId)
-    .eq("language_id", langInfo.id)
-    .eq("status", "published")
-    .or(`published_at.is.null,published_at.lte.${new Date().toISOString()}`)
-    .single();
+//   const { data: post, error: postErr } = await supabase
+//     .from("posts")
+//     .select("slug")
+//     .eq("translation_group_id", translationGroupId)
+//     .eq("language_id", langInfo.id)
+//     .eq("status", "published")
+//     .or(`published_at.is.null,published_at.lte.${new Date().toISOString()}`)
+//     .single();
   
-  if (postErr || !post) {
-    if (postErr) console.error(`Client (Posts): Error fetching translated post slug:`, postErr);
-    return null;
-  }
-  return post.slug;
-}
+//   if (postErr || !post) {
+//     if (postErr) console.error(`Client (Posts): Error fetching translated post slug:`, postErr);
+//     return null;
+//   }
+//   return post.slug;
+// }
 
-export default function PostClientContent({ initialPostData, currentSlug, children }: PostClientContentProps) {
+export default function PostClientContent({ initialPostData, currentSlug, children, translatedSlugs }: PostClientContentProps) {
   const { currentLocale, isLoadingLanguages } = useLanguage();
   const router = useRouter();
   
@@ -55,26 +57,24 @@ export default function PostClientContent({ initialPostData, currentSlug, childr
 
   // This effect handles navigation when the language context changes
   useEffect(() => {
-    if (!isLoadingLanguages && currentLocale && initialPostData && initialPostData.language_code !== currentLocale) {
+    if (!isLoadingLanguages && currentLocale && initialPostData && initialPostData.language_code !== currentLocale && translatedSlugs) {
       // The current page's language (from initialPostData.language_code)
       // does not match the user's selected language (currentLocale).
       // We need to find the slug for the currentLocale version of this post and navigate.
       setIsLoadingTargetLang(true);
-      const navigateToTranslatedVersion = async () => {
-        const targetSlug = await getSlugForTranslatedPost(initialPostData.translation_group_id, currentLocale, createClient());
-        if (targetSlug && targetSlug !== currentSlug) {
-          router.push(`/blog/${targetSlug}`); // Navigate to the translated slug's URL
-        } else if (!targetSlug) {
-          console.warn(`No published translation found for post group ${initialPostData.translation_group_id} in language ${currentLocale}`);
-          // Optionally, provide user feedback here (e.g., a toast message)
-          // For now, the user remains on the current page.
-        }
-        // If targetSlug === currentSlug, we are already on the correct page for the selected language.
-        setIsLoadingTargetLang(false);
-      };
-      navigateToTranslatedVersion();
+      const targetSlug = translatedSlugs[currentLocale];
+
+      if (targetSlug && targetSlug !== currentSlug) {
+        router.push(`/blog/${targetSlug}`); // Navigate to the translated slug's URL
+      } else if (!targetSlug) {
+        console.warn(`No published translation found for post group ${initialPostData.translation_group_id} in language ${currentLocale} using pre-fetched slugs.`);
+        // Optionally, provide user feedback here (e.g., a toast message)
+        // For now, the user remains on the current page.
+      }
+      // If targetSlug === currentSlug, we are already on the correct page for the selected language.
+      setIsLoadingTargetLang(false);
     }
-  }, [currentLocale, isLoadingLanguages, initialPostData, currentSlug, router]);
+  }, [currentLocale, isLoadingLanguages, initialPostData, currentSlug, router, translatedSlugs]);
 
   // This effect updates the document based on the currently displayed data
   useEffect(() => {

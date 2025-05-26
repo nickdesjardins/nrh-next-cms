@@ -82,10 +82,28 @@ export default async function DynamicPage({ params: paramsPromise }: PageProps) 
     notFound();
   }
 
+  let translatedSlugs: { [key: string]: string } = {};
+  if (pageData.translation_group_id) {
+    const supabase = getSsgSupabaseClient();
+    const { data: translations } = await supabase
+      .from("pages")
+      .select("slug, languages!inner(code)")
+      .eq("translation_group_id", pageData.translation_group_id)
+      .eq("status", "published");
+
+    if (translations) {
+      translations.forEach((translation: any) => {
+        if (translation.languages && typeof translation.languages.code === 'string' && translation.slug) {
+          translatedSlugs[translation.languages.code] = translation.slug;
+        }
+      });
+    }
+  }
+
   const pageBlocks = pageData ? <BlockRenderer blocks={pageData.blocks} languageId={pageData.language_id} /> : null;
 
   return (
-    <PageClientContent initialPageData={pageData} currentSlug={params.slug}>
+    <PageClientContent initialPageData={pageData} currentSlug={params.slug} translatedSlugs={translatedSlugs}>
       {pageBlocks}
     </PageClientContent>
   );
