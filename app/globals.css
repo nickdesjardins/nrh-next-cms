@@ -85,10 +85,6 @@
     @apply text-base font-semibold mb-2 mt-2;
   }
 
-  a {
-    @apply hover:underline;
-  }
-
   ul,
   ol {
     @apply pl-6 mb-4;

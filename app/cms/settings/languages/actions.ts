@@ -32,6 +32,20 @@ export async function getLanguages(): Promise<{ data: Language[] | null; error: 
   }
   return { data, error: null };
 }
+export async function getLanguageByCode(code: string): Promise<{ data: Language | null; error: string | null; }> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("languages")
+    .select("*")
+    .eq("code", code)
+    .single();
+
+  if (error) {
+    console.error(`Error fetching language by code ${code}:`, error);
+    return { data: null, error: `Failed to fetch language by code ${code}: ${error.message}` };
+  }
+  return { data, error: null };
+}
 
 type UpsertLanguagePayload = {
   code: string;

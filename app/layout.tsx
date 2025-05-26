@@ -10,7 +10,8 @@ import type { Language } from "@/utils/supabase/types"; // Import Language type
 import "./globals.css";
 import Header from "@/components/Header";
 import FooterNavigation from "@/components/FooterNavigation";
-import { headers } from 'next/headers';
+import { headers, cookies } from 'next/headers';
+import { unstable_noStore } from 'next/cache'; // For testing
 
 const defaultUrl = process.env.VERCEL_URL
   ? `https://${process.env.VERCEL_URL}`
@@ -29,10 +30,24 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  unstable_noStore(); // Add this for testing to ensure layout is fully dynamic
 
-  const heads = await headers();
-  const rawHeaderLocale = heads.get('x-user-locale');
-  let serverDeterminedLocale = rawHeaderLocale || DEFAULT_LOCALE_FOR_LAYOUT;
+  const headerList = await headers();
+  const cookieStore = await cookies(); // Await cookies()
+
+  const xUserLocaleHeader = headerList.get('x-user-locale');
+  const nextUserLocaleCookie = cookieStore.get('NEXT_USER_LOCALE')?.value;
+
+  let serverDeterminedLocale: string; // Explicitly type serverDeterminedLocale
+  if (xUserLocaleHeader) {
+    serverDeterminedLocale = xUserLocaleHeader;
+  } else {
+    if (nextUserLocaleCookie) {
+      serverDeterminedLocale = nextUserLocaleCookie;
+    } else {
+      serverDeterminedLocale = DEFAULT_LOCALE_FOR_LAYOUT;
+    }
+  }
 
   // Fetch languages server-side
   let availableLanguages: Language[] = [];
@@ -74,7 +89,7 @@ export default async function RootLayout({
                 <div className="flex-1 w-full flex flex-col items-center">
                   <nav className="w-full flex justify-center border-b border-b-foreground/10 h-16">
                     <div className="w-full max-w-7xl flex justify-between items-center p-3 px-5 text-sm">
-                      {!hasEnvVars ? <EnvVarWarning /> : <Header />}
+                      {!hasEnvVars ? <EnvVarWarning /> : <Header currentLocale={serverDeterminedLocale} />}
                     </div>
                   </nav>
                   <div className="flex flex-col w-full flex-grow">{children}</div>

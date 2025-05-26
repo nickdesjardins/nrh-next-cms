@@ -2,7 +2,7 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, unstable_noStore } from "next/cache";
 import { redirect } from "next/navigation";
 import type { NavigationItem, MenuLocation, Language } from "@/utils/supabase/types";
 import { v4 as uuidv4 } from 'uuid';
@@ -253,6 +253,7 @@ export async function updateNavigationStructureBatch(
 // Fetches navigation items for a specific menu and language (used by public site Header/Footer)
 export async function getNavigationMenu(menuKey: MenuLocation, languageCode: string): Promise<NavigationItem[]> {
   const supabase = createClient(); // server client
+  unstable_noStore(); // Opt out of caching for this function
 
   const { data: language, error: langError } = await supabase
     .from("languages")

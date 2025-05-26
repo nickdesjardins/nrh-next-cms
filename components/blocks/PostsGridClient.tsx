@@ -45,11 +45,6 @@ const PostsGridClient: React.FC<PostsGridClientProps> = ({
     setError(null);
     try {
       const result = await fetchAction(languageId, newPage, postsPerPage);
-      // Log the posts received from the fetchAction
-      console.log('PostsGridClient - Paginated posts received:', JSON.stringify(result.posts, null, 2));
-      if (result.posts && result.posts.length > 0) {
-        console.log('PostsGridClient - First paginated post feature_image_url:', result.posts[0].feature_image_url);
-      }
 
       if (result.error) {
         setError(result.error);

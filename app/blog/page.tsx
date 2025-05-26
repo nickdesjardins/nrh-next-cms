@@ -6,6 +6,7 @@ import type { Metadata, ResolvingMetadata } from 'next';
 import PageClientContent from "../[slug]/PageClientContent";
 import { getPageDataBySlug } from "../[slug]/page.utils";
 import BlockRenderer from "../../components/BlockRenderer";
+import { getPageTranslations } from '@/app/actions/languageActions'; // Added import
 
 export const dynamicParams = true;
 export const revalidate = 3600;
@@ -58,10 +59,21 @@ export default async function BlogPage() {
     notFound();
   }
 
+  let translatedSlugs: { [key: string]: string } = {};
+  // Ensure pageData and translation_group_id are available before fetching translations
+  if (pageData && pageData.translation_group_id) {
+    const translations = await getPageTranslations(pageData.translation_group_id);
+    translations.forEach(t => {
+      if (t.language_code && t.slug) { // Ensure both properties exist
+        translatedSlugs[t.language_code] = t.slug;
+      }
+    });
+  }
+
   const pageBlocks = pageData ? <BlockRenderer blocks={pageData.blocks} languageId={pageData.language_id} /> : null;
 
   return (
-    <PageClientContent initialPageData={pageData} currentSlug={slug}>
+    <PageClientContent initialPageData={pageData} currentSlug={slug} translatedSlugs={translatedSlugs}>
       {pageBlocks}
     </PageClientContent>
   );

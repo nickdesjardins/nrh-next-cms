@@ -1,11 +1,11 @@
 // context/LanguageContext.tsx
-'use client';
+'use client'; // This directive applies to the rest of the file.
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { Language } from '@/utils/supabase/types';
 import { getActiveLanguagesClientSide } from '@/utils/supabase/client';
 import Cookies from 'js-cookie';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation'; // Import usePathname
 
 const LANGUAGE_STORAGE_KEY = 'preferred_locale_storage';
 const LANGUAGE_COOKIE_KEY = 'NEXT_USER_LOCALE';
@@ -35,6 +35,7 @@ export const LanguageProvider = ({
   initialDefaultLanguage
 }: LanguageProviderProps) => {
   const router = useRouter();
+  const pathname = usePathname(); // Get current pathname
 
   const [currentLocale, _setCurrentLocale] = useState<string>(() => {
     let initialVal = DEFAULT_FALLBACK_LOCALE;
@@ -58,66 +59,88 @@ export const LanguageProvider = ({
   const [defaultLanguage, setDefaultLanguage] = useState<Language | null>(initialDefaultLanguage || null);
   // isLoadingLanguages is true if server didn't provide initial languages, or if they were empty.
   const [isLoadingLanguages, setIsLoadingLanguages] = useState(!initialAvailableLanguages || initialAvailableLanguages.length === 0);
+  const [clientSelectedLocale, setClientSelectedLocale] = useState<string | null>(null);
 
   useEffect(() => {
+    let isMounted = true; // Track mount status
+
     const initializeLanguages = async () => {
+      setIsLoadingLanguages(true); // Set loading true at the start of initialization
+
       let languagesToUse = initialAvailableLanguages;
       let defaultLangToUse = initialDefaultLanguage;
 
       // If server didn't provide languages, or they were empty, fetch client-side as a fallback.
       if (!languagesToUse || languagesToUse.length === 0) {
-        languagesToUse = await getActiveLanguagesClientSide();
-        setAvailableLanguages(languagesToUse);
-        defaultLangToUse = languagesToUse.find(lang => lang.is_default) || languagesToUse[0] || null;
-        setDefaultLanguage(defaultLangToUse);
-      }
-      
-      // Determine effective locale based on serverLocale, cookies, localStorage, or DB default
-      let determinedEffectiveLocale = DEFAULT_FALLBACK_LOCALE;
-      const isValidLang = (lc: string | undefined) => lc && languagesToUse && languagesToUse.some(lang => lang.code === lc);
-
-      if (isValidLang(serverLocale)) {
-        determinedEffectiveLocale = serverLocale!;
-      } else {
-        const cookieVal = Cookies.get(LANGUAGE_COOKIE_KEY);
-        if (isValidLang(cookieVal)) {
-          determinedEffectiveLocale = cookieVal!;
-        } else {
-          const storageVal = typeof window !== 'undefined' ? localStorage.getItem(LANGUAGE_STORAGE_KEY) : null;
-          if (isValidLang(storageVal || undefined)) {
-            determinedEffectiveLocale = storageVal!;
-          } else if (defaultLangToUse && isValidLang(defaultLangToUse.code)) {
-            determinedEffectiveLocale = defaultLangToUse.code;
-          } else if (languagesToUse && languagesToUse.length > 0 && isValidLang(languagesToUse[0].code)) {
-            determinedEffectiveLocale = languagesToUse[0].code;
+        try {
+          const fetchedLangs = await getActiveLanguagesClientSide();
+          if (isMounted) { // Check mount status before setting state
+            languagesToUse = fetchedLangs;
+            setAvailableLanguages(fetchedLangs);
+            defaultLangToUse = fetchedLangs.find(lang => lang.is_default) || fetchedLangs[0] || null;
+            setDefaultLanguage(defaultLangToUse);
+          }
+        } catch (error) {
+          console.error("LanguageContext: Error fetching languages client-side", error);
+          if (isMounted) { // Still ensure we update loading state on error
+             languagesToUse = []; // Fallback to empty array
+             defaultLangToUse = null;
           }
         }
       }
       
-      // Final check to ensure determined locale is actually in the available list
-      if (languagesToUse && !languagesToUse.some(lang => lang.code === determinedEffectiveLocale)) {
-          if (languagesToUse.length > 0) {
-              determinedEffectiveLocale = languagesToUse[0].code;
-          } else {
-              // This case should be rare if getActiveLanguagesClientSide always returns something or errors
-              determinedEffectiveLocale = DEFAULT_FALLBACK_LOCALE;
-          }
-      }
+      if (!isMounted) return; // Early exit if component unmounted or deps changed
 
-      _setCurrentLocale(determinedEffectiveLocale);
-      if (typeof window !== 'undefined') {
-        localStorage.setItem(LANGUAGE_STORAGE_KEY, determinedEffectiveLocale);
-        document.documentElement.lang = determinedEffectiveLocale;
+      // Determine effective locale based on serverLocale, cookies, localStorage, or DB default
+      const isValidLang = (lc: string | undefined) => lc && languagesToUse && languagesToUse.some(lang => lang.code === lc);
+      const cookieLocale = Cookies.get(LANGUAGE_COOKIE_KEY);
+      const storedLocale = typeof window !== 'undefined' ? localStorage.getItem(LANGUAGE_STORAGE_KEY) : null;
+
+      let effectiveLocale = DEFAULT_FALLBACK_LOCALE; // Start with a fallback
+
+      if (clientSelectedLocale) {
+        // User has made a direct, recent selection. This is the new source of truth for effectiveLocale.
+        effectiveLocale = clientSelectedLocale;
+
+        // If the server has caught up AND this choice is recognized as valid by current availableLanguages,
+        // then we can clear clientSelectedLocale. Otherwise, keep it set to ensure it's enforced.
+        if (clientSelectedLocale === serverLocale && isValidLang(clientSelectedLocale)) {
+          if (isMounted) {
+            setClientSelectedLocale(null);
+          }
+        }
+        // If clientSelectedLocale is not yet in availableLanguages (isValidLang is false),
+        // or serverLocale hasn't caught up, clientSelectedLocale remains set,
+        // and effectiveLocale is already correctly set to clientSelectedLocale.
+      } else {
+        // No recent client selection, use existing prioritization
+        effectiveLocale = serverLocale && isValidLang(serverLocale) ? serverLocale!
+                      : (cookieLocale && isValidLang(cookieLocale) ? cookieLocale!
+                      : (storedLocale && isValidLang(storedLocale) ? storedLocale!
+                      : (defaultLangToUse ? defaultLangToUse.code : DEFAULT_FALLBACK_LOCALE)));
       }
-      Cookies.set(LANGUAGE_COOKIE_KEY, determinedEffectiveLocale, { path: '/', expires: 365, sameSite: 'Lax' });
       
-      setIsLoadingLanguages(false); // Done loading/initializing
+      if (!isMounted) return; // Early exit
+
+      if (isMounted) { // Check mount status before final state updates
+        _setCurrentLocale(effectiveLocale);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(LANGUAGE_STORAGE_KEY, effectiveLocale);
+          document.documentElement.lang = effectiveLocale;
+        }
+        Cookies.set(LANGUAGE_COOKIE_KEY, effectiveLocale, { path: '/', expires: 365, sameSite: 'Lax' });
+        setIsLoadingLanguages(false); // Done loading/initializing
+      }
     };
 
     initializeLanguages();
-  }, [serverLocale, initialAvailableLanguages, initialDefaultLanguage]);
 
-  const setCurrentLocaleCallback = useCallback((localeCode: string) => {
+    return () => {
+      isMounted = false; // Cleanup function to set isMounted to false
+    };
+  }, [serverLocale, initialAvailableLanguages, initialDefaultLanguage, clientSelectedLocale]);
+
+  const setCurrentLocaleCallback = useCallback(async (localeCode: string) => { // Add async here
     let localeToSet = DEFAULT_FALLBACK_LOCALE;
     let isValidForRouterRefresh = false;
     
@@ -142,10 +165,15 @@ export const LanguageProvider = ({
     }
     Cookies.set(LANGUAGE_COOKIE_KEY, localeToSet, { path: '/', expires: 365, sameSite: 'Lax' });
 
-    if (isValidForRouterRefresh) {
-      router.refresh();
+    // The LanguageSwitcher component is responsible for navigation (push or refresh).
+    // We only set the clientSelectedLocale here to ensure the main useEffect
+    // in LanguageProvider can pick up this explicit choice if needed during initialization
+    // or if the serverLocale hasn't caught up yet.
+    if (isValidForRouterRefresh) { // This check might still be useful for setClientSelectedLocale
+      setClientSelectedLocale(localeToSet);
     }
-  }, [availableLanguages, router]);
+    // router.refresh(); // REMOVED: LanguageSwitcher will handle navigation/refresh.
+  }, [availableLanguages, router, pathname]); // Add pathname to dependencies
 
   useEffect(() => {
     if (currentLocale && typeof window !== 'undefined') {
