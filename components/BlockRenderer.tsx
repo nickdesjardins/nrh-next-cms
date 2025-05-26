@@ -44,22 +44,28 @@ const BlockRenderer: React.FC<BlockRendererProps> = ({ blocks, languageId }) => 
               </Tag>
             );
           case "image":
-            const imageContent = content as ImageBlockContent; // Now expecting object_key
-            if (!imageContent.media_id || !imageContent.object_key) { // Check for object_key
+            const imageContent = content as ImageBlockContent;
+            if (!imageContent.media_id || !imageContent.object_key) {
               return <div key={block.id} className="my-4 p-4 border rounded text-center text-muted-foreground italic">(Image block: Media not selected or object_key missing)</div>;
             }
+            if (typeof imageContent.width !== 'number' || typeof imageContent.height !== 'number' || imageContent.width <= 0 || imageContent.height <= 0) {
+              return <div key={block.id} className="my-4 p-4 border rounded text-center text-muted-foreground italic">(Image block: Image dimensions are missing or invalid)</div>;
+            }
+
             const displayImageUrl = `${R2_BASE_URL}/${imageContent.object_key}`;
             return (
               <figure key={block.id} className="my-6 text-center">
                 <div
-                  className="relative mx-auto max-w-full aspect-video" // Default aspect ratio
+                  className="mx-auto max-w-full" // Removed relative and aspect-video
+                  style={{ width: imageContent.width, height: imageContent.height }} // Optional: set container size if needed, or let image dictate
                 >
                   <Image
                     src={displayImageUrl}
                     alt={imageContent.alt_text || "Uploaded image"}
-                    fill
-                    style={{ objectFit: 'contain' }}
+                    width={imageContent.width}
+                    height={imageContent.height}
                     className="rounded-md border"
+                    // Removed fill and style={{ objectFit: 'contain' }}
                   />
                 </div>
                 {imageContent.caption && (

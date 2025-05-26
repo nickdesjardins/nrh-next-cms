@@ -36,7 +36,7 @@ export default function ImageBlockSelector({ content, onChange }: ImageBlockSele
       const fetchMediaDetails = async () => {
         const { data, error } = await supabase
           .from('media')
-          .select('id, object_key, description, file_name') // Fetch needed fields
+          .select('id, object_key, description, file_name, width, height') // Fetch needed fields including width and height
           .eq('id', content.media_id!)
           .single();
         if (data) {
@@ -45,12 +45,14 @@ export default function ImageBlockSelector({ content, onChange }: ImageBlockSele
             object_key: data.object_key,
             alt_text: content.alt_text || data.description || data.file_name,
             caption: content.caption || "",
+            width: data.width, // Add width
+            height: data.height, // Add height
           });
           setSelectedMediaObjectKey(data.object_key);
         } else {
           console.error("Error fetching selected media details:", error);
           // Handle case where media_id is invalid or item deleted
-          onChange({ media_id: content.media_id ?? null, object_key: null, alt_text: "Error: Media not found", caption: "" });
+          onChange({ media_id: content.media_id ?? null, object_key: null, alt_text: "Error: Media not found", caption: "", width: null, height: null });
         }
         setIsLoadingMediaDetails(false);
       };
@@ -87,21 +89,39 @@ export default function ImageBlockSelector({ content, onChange }: ImageBlockSele
       object_key: mediaItem.object_key, // Store the object_key
       alt_text: content.alt_text || mediaItem.description || mediaItem.file_name,
       caption: content.caption || "",
+      width: mediaItem.width, // Add width
+      height: mediaItem.height, // Add height
     });
     setIsModalOpen(false);
   };
 
   const handleAltTextChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    onChange({ ...content, media_id: content.media_id || null, object_key: selectedMediaObjectKey, alt_text: event.target.value });
+    onChange({
+      ...content,
+      media_id: content.media_id || null,
+      object_key: selectedMediaObjectKey,
+      alt_text: event.target.value,
+      // Ensure width and height are preserved if they exist on content
+      width: content.width,
+      height: content.height
+    });
   };
 
   const handleCaptionChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    onChange({ ...content, media_id: content.media_id || null, object_key: selectedMediaObjectKey, caption: event.target.value });
+    onChange({
+      ...content,
+      media_id: content.media_id || null,
+      object_key: selectedMediaObjectKey,
+      caption: event.target.value,
+      // Ensure width and height are preserved if they exist on content
+      width: content.width,
+      height: content.height
+    });
   };
 
   const handleRemoveImage = () => {
     setSelectedMediaObjectKey(null);
-    onChange({ media_id: null, object_key: null, alt_text: "", caption: "" });
+    onChange({ media_id: null, object_key: null, alt_text: "", caption: "", width: null, height: null });
   };
 
   const displayObjectKey = content.object_key || selectedMediaObjectKey;

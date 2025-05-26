@@ -14,6 +14,8 @@ export async function recordMediaUpload(payload: {
   fileType: string;
   sizeBytes: number;
   description?: string;
+  width?: number; // Added width
+  height?: number; // Added height
 }, returnJustData?: boolean): Promise<{ success: true; data: Media } | { error: string } | void>  {
   const supabase = createClient();
   const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -40,6 +42,8 @@ export async function recordMediaUpload(payload: {
     file_type: payload.fileType,
     size_bytes: payload.sizeBytes,
     description: payload.description || null,
+    width: payload.width || null, // Added width
+    height: payload.height || null, // Added height
   };
 
   const { data: newMedia, error } = await supabase
@@ -223,8 +227,10 @@ export async function deleteMultipleMediaItems(items: Array<{ id: string; object
 
 
 // Type for inserting media
-type InsertMediaPayload = Omit<Media, 'id' | 'created_at' | 'updated_at' | 'uploader_id'> & {
+type InsertMediaPayload = Omit<Media, 'id' | 'created_at' | 'updated_at' | 'uploader_id' | 'width' | 'height'> & {
     uploader_id: string;
+    width?: number | null; // Added width
+    height?: number | null; // Added height
 };
 
 export async function getMediaItems(

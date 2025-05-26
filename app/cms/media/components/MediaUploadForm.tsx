@@ -29,6 +29,7 @@ export default function MediaUploadForm({ onUploadSuccess, returnJustData }: Med
   const [isPending, startTransition] = useTransition();
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null); // For image preview
+  const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number } | null>(null); // For image dimensions
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadStatus, setUploadStatus] = useState<"idle" | "uploading" | "success" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -40,16 +41,39 @@ export default function MediaUploadForm({ onUploadSuccess, returnJustData }: Med
       URL.revokeObjectURL(previewUrl); // Clean up previous preview
       setPreviewUrl(null);
     }
+    setImageDimensions(null); // Reset dimensions
+
     if (selectedFile) {
       setFile(selectedFile);
       setUploadStatus("idle");
       setUploadProgress(0);
       setErrorMessage(null);
+
       if (selectedFile.type.startsWith("image/")) {
-        setPreviewUrl(URL.createObjectURL(selectedFile));
+        const localPreviewUrl = URL.createObjectURL(selectedFile);
+        setPreviewUrl(localPreviewUrl);
+
+        // Get image dimensions
+        const img = new window.Image();
+        img.onload = () => {
+          setImageDimensions({ width: img.naturalWidth, height: img.naturalHeight });
+          URL.revokeObjectURL(img.src); // Clean up object URL used for dimensions
+        };
+        img.onerror = () => {
+          console.error("Error loading image to get dimensions.");
+          setImageDimensions(null);
+          URL.revokeObjectURL(img.src); // Clean up object URL used for dimensions
+        };
+        img.src = URL.createObjectURL(selectedFile); // Create a new object URL for dimension calculation
       }
     } else {
       setFile(null); // Clear file if selection is cancelled or no file
+      // If previewUrl was set, it's already handled by the block at the start of this function
+      // or should be cleared if we are explicitly clearing the file.
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+        setPreviewUrl(null);
+      }
     }
   };
 
@@ -168,13 +192,27 @@ export default function MediaUploadForm({ onUploadSuccess, returnJustData }: Med
         setUploadProgress(100);
 
         // 3. Record media in Supabase
+        const mediaDataPayload: {
+          fileName: string;
+          objectKey: string;
+          fileType: string;
+          sizeBytes: number;
+          width?: number;
+          height?: number;
+        } = {
+          fileName: currentFileForUpload.name,
+          objectKey: objectKey,
+          fileType: currentFileForUpload.type,
+          sizeBytes: currentFileForUpload.size,
+        };
+
+        if (imageDimensions && currentFileForUpload.type.startsWith("image/")) {
+          mediaDataPayload.width = imageDimensions.width;
+          mediaDataPayload.height = imageDimensions.height;
+        }
+
         const recordResult = await recordMediaUpload(
-          {
-            fileName: currentFileForUpload.name,
-            objectKey: objectKey,
-            fileType: currentFileForUpload.type,
-            sizeBytes: currentFileForUpload.size,
-          },
+          mediaDataPayload,
           returnJustData
         );
 
@@ -195,6 +233,7 @@ export default function MediaUploadForm({ onUploadSuccess, returnJustData }: Med
         setFile(null);
         if (previewUrl) URL.revokeObjectURL(previewUrl);
         setPreviewUrl(null);
+        setImageDimensions(null); // Clear dimensions
         if (fileInputRef.current) fileInputRef.current.value = "";
 
       } catch (err: any) {
@@ -205,6 +244,7 @@ export default function MediaUploadForm({ onUploadSuccess, returnJustData }: Med
           setFile(null);
           if (previewUrl) URL.revokeObjectURL(previewUrl);
           setPreviewUrl(null);
+          setImageDimensions(null); // Clear dimensions
           if (fileInputRef.current) fileInputRef.current.value = "";
         } else {
           console.error("Upload process error:", err);

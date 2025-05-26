@@ -40,6 +40,8 @@ export interface ImageBlockContent {
   object_key?: string | null; // The actual R2 object key (e.g., "uploads/image.png")
   alt_text?: string;
   caption?: string;
+  width?: number | null;      // Added width
+  height?: number | null;     // Added height
 }
 
 export interface ButtonBlockContent {
@@ -120,6 +122,8 @@ export interface Media {
   file_type?: string | null;
   size_bytes?: number | null;
   description?: string | null;
+  width?: number | null;      // Added width
+  height?: number | null;     // Added height
   created_at: string;
   updated_at: string;
 }
