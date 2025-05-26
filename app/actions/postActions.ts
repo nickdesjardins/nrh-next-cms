@@ -3,7 +3,7 @@
 import { createClient } from '../../utils/supabase/server';
 import type { Post } from '../../utils/supabase/types'; // Ensure this path is correct
 
-export async function fetchPaginatedPublishedPosts(languageId: number, page: number, limit: number) {
+export async function fetchPaginatedPublishedPosts(languageId: number, page: number, limit: number): Promise<{ posts: Post[], totalCount: number, error?: string }> {
   const supabase = createClient();
   const offset = (page - 1) * limit;
 
@@ -29,7 +29,7 @@ export async function fetchPaginatedPublishedPosts(languageId: number, page: num
 
   const processedPosts = posts.map(post => ({
     ...post,
-    feature_image_url: post.media && post.media[0]?.object_key ? `${process.env.NEXT_PUBLIC_R2_BASE_URL}/${post.media[0].object_key}` : null,
+    feature_image_url: post.media?.[0]?.object_key ? `${process.env.NEXT_PUBLIC_R2_BASE_URL}/${post.media[0].object_key}` : null,
   }));
 
   // Log processed posts to check 'feature_image_url'
@@ -57,7 +57,7 @@ export async function fetchInitialPublishedPosts(languageId: number, limit: numb
   }
   const processedPosts = posts.map(post => ({
     ...post,
-    feature_image_url: post.media && post.media[0]?.object_key ? `${process.env.NEXT_PUBLIC_R2_BASE_URL}/${post.media[0].object_key}` : null,
+    feature_image_url: post.media?.[0]?.object_key ? `${process.env.NEXT_PUBLIC_R2_BASE_URL}/${post.media[0].object_key}` : null,
   }));
   return { posts: processedPosts as Post[], totalCount: count || 0, error: null };
 }

@@ -108,7 +108,7 @@ export interface Post {
   translation_group_id: string; // Added
   feature_image_id?: string | null;
   feature_image_url?: string | null;
-  media?: { object_key: string; } | null; // Added to reflect the joined media object
+  media?: { object_key: string; }[] | null; // Media can be an array of objects or null
 }
 
 export interface Media {
