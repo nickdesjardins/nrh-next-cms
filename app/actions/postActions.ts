@@ -20,9 +20,7 @@ export async function fetchPaginatedPublishedPosts(languageId: number, page: num
     console.error("Error fetching paginated posts:", error);
     return { posts: [], totalCount: 0, error: error.message };
   }
-
-  console.log("fetchPaginatedPublishedPosts - Raw posts from Supabase (with feature_media_object):", JSON.stringify(posts, null, 2));
-
+ 
   const processedPosts = posts.map(post => {
     // Process feature_media_object (which is an object or null from the query)
     // The 'as unknown as ...' cast is to align with how PostsGridBlock handles it,
@@ -31,10 +29,7 @@ export async function fetchPaginatedPublishedPosts(languageId: number, page: num
     const imageUrl = mediaObject?.object_key
       ? `${process.env.NEXT_PUBLIC_R2_BASE_URL}/${mediaObject.object_key}`
       : null;
-
-    console.log(`fetchPaginatedPublishedPosts - Processing post ID ${post.id}, raw feature_media_object:`, JSON.stringify(post.feature_media_object, null, 2));
-    console.log(`fetchPaginatedPublishedPosts - Post ID ${post.id}, derived imageUrl:`, imageUrl);
-
+ 
     return {
       ...post,
       // Ensure feature_media_object is passed through if needed by client, and feature_image_url is correctly derived
@@ -42,12 +37,7 @@ export async function fetchPaginatedPublishedPosts(languageId: number, page: num
       feature_image_url: imageUrl,
     };
   });
-
-  // Log processed posts to check 'feature_image_url'
-  if (processedPosts && processedPosts.length > 0) {
-    console.log("fetchPaginatedPublishedPosts - Processed posts (sample):", JSON.stringify(processedPosts[0], null, 2));
-  }
-
+ 
   return { posts: processedPosts as Post[], totalCount: count || 0, error: undefined }; // Return error: undefined on success
 }
 
@@ -67,29 +57,19 @@ export async function fetchInitialPublishedPosts(languageId: number, limit: numb
     console.error("Error fetching initial posts:", error);
     return { posts: [], totalCount: 0, error: error.message };
   }
-
-  // Add logging similar to fetchPaginatedPublishedPosts for consistency
-  console.log("fetchInitialPublishedPosts - Raw posts from Supabase (with feature_media_object):", JSON.stringify(posts, null, 2));
-
+ 
   const processedPosts = posts.map(post => {
     const mediaObject = post.feature_media_object as unknown as { object_key: string } | null;
     const imageUrl = mediaObject?.object_key
       ? `${process.env.NEXT_PUBLIC_R2_BASE_URL}/${mediaObject.object_key}`
       : null;
-
-    console.log(`fetchInitialPublishedPosts - Processing post ID ${post.id}, raw feature_media_object:`, JSON.stringify(post.feature_media_object, null, 2));
-    console.log(`fetchInitialPublishedPosts - Post ID ${post.id}, derived imageUrl:`, imageUrl);
-
+ 
     return {
       ...post,
       feature_media_object: mediaObject,
       feature_image_url: imageUrl,
     };
   });
-
-  if (processedPosts && processedPosts.length > 0) {
-    console.log("fetchInitialPublishedPosts - Processed posts (sample):", JSON.stringify(processedPosts[0], null, 2));
-  }
-
+ 
   return { posts: processedPosts as Post[], totalCount: count || 0, error: null };
 }

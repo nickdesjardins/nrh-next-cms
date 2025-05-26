@@ -37,22 +37,16 @@ const PostsGridBlock: React.FC<PostsGridBlockProps> = async ({ block, languageId
     console.error("Error fetching initial posts directly in PostsGridBlock:", queryError);
     postsError = queryError.message;
   } else {
-    console.log("PostsGridBlock - Raw postsData from Supabase:", JSON.stringify(postsData, null, 2));
     initialPosts = postsData?.map(p => {
-      console.log(`PostsGridBlock - Processing post ID ${p.id}, raw feature_media_object from query:`, JSON.stringify(p.feature_media_object, null, 2));
       // feature_media_object is an object here, not an array, due to the query structure media!feature_image_id(object_key)
       // Cast to 'unknown' then to the expected single object type to satisfy TypeScript, reflecting runtime reality.
       const mediaObject = p.feature_media_object as unknown as { object_key: string } | null;
       const imageUrl = mediaObject?.object_key
         ? `${process.env.NEXT_PUBLIC_R2_BASE_URL}/${mediaObject.object_key}`
         : null;
-      console.log(`PostsGridBlock - Post ID ${p.id}, derived imageUrl:`, imageUrl);
       return { ...p, feature_image_url: imageUrl };
     }) as Post[] || [];
     totalCount = count || 0;
-    if (initialPosts.length > 0) {
-      console.log("PostsGridBlock - Processed initialPosts (sample):", JSON.stringify(initialPosts[0], null, 2));
-    }
   }
 
   if (postsError) {
