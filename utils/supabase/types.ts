@@ -108,7 +108,8 @@ export interface Post {
   translation_group_id: string; // Added
   feature_image_id?: string | null;
   feature_image_url?: string | null;
-  media?: { object_key: string; }[] | null; // Media can be an array of objects or null
+  media?: { object_key: string; }[] | null; // General media items associated with the post
+  feature_media_object?: { object_key: string }[] | null; // Media object(s) for feature_image_id, expected to be 0 or 1 item
 }
 
 export interface Media {
