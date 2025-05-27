@@ -84,9 +84,9 @@ export default function LanguageSwitcher({ currentPageData }: LanguageSwitcherPr
 
   return (
     <div className="flex items-center">
-      <Select value={currentLocale} onValueChange={handleValueChange}>
-        <SelectTrigger className="h-9 text-xs sm:text-sm">
-          <SelectValue placeholder="Language" />
+      <Select value={currentLocale} onValueChange={handleValueChange} aria-label="Language Switcher">
+        <SelectTrigger className="h-9 text-xs sm:text-sm" aria-label="Language Switcher">
+          <SelectValue placeholder="Language" aria-label="Language Switcher"/>
         </SelectTrigger>
         <SelectContent>
           {availableLanguages.map((lang: Language) => (

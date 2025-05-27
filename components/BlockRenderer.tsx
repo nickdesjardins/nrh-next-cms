@@ -82,23 +82,32 @@ const BlockRenderer: React.FC<BlockRendererProps> = ({ blocks, languageId }) => 
 
             return (
               <div key={block.id} className="my-6 text-center">
-                <UIButton
-                  asChild={!isExternal && !isAnchor && !!buttonContent.url} // Use NextLink for internal paths
-                  variant={buttonContent.variant || "default"}
-                  size={buttonContent.size || "default"}
-                >
                   {(!isExternal && !isAnchor && !!buttonContent.url) ? (
-                    <Link href={buttonContent.url || "#"}>{buttonContent.text || "Button"}</Link>
+                    <Link href={buttonContent.url || "#"}>
+                      <UIButton
+                        asChild={!isExternal && !isAnchor && !!buttonContent.url} // Use NextLink for internal paths
+                        variant={buttonContent.variant || "default"}
+                        size={buttonContent.size || "default"}
+                      >
+                        {buttonContent.text || "Button"}
+                      </UIButton>
+                    </Link>
                   ) : (
                     <a 
                       href={buttonContent.url || "#"} 
                       target={isExternal ? '_blank' : undefined} 
                       rel={isExternal ? 'noopener noreferrer' : undefined}
                     >
-                      {buttonContent.text || "Button"}
+                      <UIButton
+                        asChild={!isExternal && !isAnchor && !!buttonContent.url} // Use NextLink for internal paths
+                        variant={buttonContent.variant || "default"}
+                        size={buttonContent.size || "default"}
+                      >
+                        {buttonContent.text || "Button"}
+                      </UIButton>
                     </a>
                   )}
-                </UIButton>
+                
               </div>
             );
           case "posts_grid":

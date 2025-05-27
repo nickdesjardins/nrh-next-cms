@@ -2,19 +2,20 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import type { Post } from '../../utils/supabase/types';
+import type { PostWithMediaDimensions } from '../../utils/supabase/types';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Button } from '../ui/button'; // Adjusted path
 
 interface PostsGridClientProps {
-  initialPosts: Post[];
+  initialPosts: PostWithMediaDimensions[];
   initialPage: number;
   postsPerPage: number;
   totalCount: number;
   columns: number;
   languageId: number;
   showPagination: boolean;
-  fetchAction: (languageId: number, page: number, limit: number) => Promise<{ posts: Post[], totalCount: number, error?: string }>;
+  fetchAction: (languageId: number, page: number, limit: number) => Promise<{ posts: PostWithMediaDimensions[], totalCount: number, error?: string }>;
 }
 
 const PostsGridClient: React.FC<PostsGridClientProps> = ({
@@ -28,7 +29,7 @@ const PostsGridClient: React.FC<PostsGridClientProps> = ({
   fetchAction,
 }) => {
   const [currentPage, setCurrentPage] = useState(initialPage);
-  const [posts, setPosts] = useState<Post[]>(initialPosts);
+  const [posts, setPosts] = useState<PostWithMediaDimensions[]>(initialPosts);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -80,15 +81,21 @@ const PostsGridClient: React.FC<PostsGridClientProps> = ({
           <Link href={`/blog/${post.slug}`} key={post.id} className="block group">
             <div className="border rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow bg-card text-card-foreground">
               {/* Basic Post Card Structure - Enhanced with Feature Image */}
-              {post.feature_image_url && (
+              {post.feature_image_url && typeof post.feature_image_width === 'number' && typeof post.feature_image_height === 'number' && post.feature_image_width > 0 && post.feature_image_height > 0 ? (
                 <div className="aspect-video overflow-hidden"> {/* Or other aspect ratio as desired, e.g., aspect-[16/9] or aspect-square */}
-                  <img
+                  <Image
                     src={post.feature_image_url}
-                    alt={`Feature image for ${post.title}`} // Or a more generic alt text if titles can be very long
-                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" // Added hover effect
+                    alt={`Feature image for ${post.title}`}
+                    width={post.feature_image_width}
+                    height={post.feature_image_height}
+                    className="h-full object-cover transition-transform duration-300 group-hover:scale-105"
                   />
                 </div>
-              )}
+              ) : post.feature_image_url ? (
+                <div className="aspect-video overflow-hidden bg-gray-200 flex items-center justify-center">
+                  <span className="text-gray-500">Image not available</span>
+                </div>
+              ) : null}
               <div className="p-4">
                 <h3 className="text-lg font-semibold mb-2 group-hover:text-primary">{post.title}</h3>
                 {post.excerpt && <p className="text-sm text-muted-foreground mb-3 line-clamp-3">{post.excerpt}</p>}

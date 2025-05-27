@@ -1,6 +1,6 @@
 // components/blocks/PostsGridBlock.tsx
 import React from 'react';
-import type { Block, Post } from '../../utils/supabase/types';
+import type { Block, PostWithMediaDimensions } from '../../utils/supabase/types';
 import { createClient } from '../../utils/supabase/server'; // Added import
 import Link from 'next/link';
 import PostsGridClient from './PostsGridClient';
@@ -23,13 +23,13 @@ const PostsGridBlock: React.FC<PostsGridBlockProps> = async ({ block, languageId
 
   const { data: postsData, error: queryError, count } = await supabase
     .from('posts')
-    .select('id, title, slug, excerpt, published_at, language_id, status, created_at, updated_at, translation_group_id, feature_image_id, feature_media_object:media!feature_image_id(object_key)', { count: 'exact' })
+    .select('id, title, slug, excerpt, published_at, language_id, status, created_at, updated_at, translation_group_id, feature_image_id, feature_media_object:media!feature_image_id(object_key, width, height)', { count: 'exact' })
     .eq('status', 'published')
     .eq('language_id', languageId)
     .order('published_at', { ascending: false })
     .limit(postsPerPage);
 
-  let initialPosts: Post[] = [];
+  let initialPosts: PostWithMediaDimensions[] = [];
   let totalCount: number = 0;
   let postsError: string | null = null;
 
@@ -38,14 +38,21 @@ const PostsGridBlock: React.FC<PostsGridBlockProps> = async ({ block, languageId
     postsError = queryError.message;
   } else {
     initialPosts = postsData?.map(p => {
-      // feature_media_object is an object here, not an array, due to the query structure media!feature_image_id(object_key)
+      // feature_media_object is an object here, not an array, due to the query structure media!feature_image_id(object_key, width, height)
       // Cast to 'unknown' then to the expected single object type to satisfy TypeScript, reflecting runtime reality.
-      const mediaObject = p.feature_media_object as unknown as { object_key: string } | null;
+      const mediaObject = p.feature_media_object as unknown as { object_key: string; width?: number | null; height?: number | null } | null;
       const imageUrl = mediaObject?.object_key
         ? `${process.env.NEXT_PUBLIC_R2_BASE_URL}/${mediaObject.object_key}`
         : null;
-      return { ...p, feature_image_url: imageUrl };
-    }) as Post[] || [];
+      return {
+        ...p,
+        // Convert feature_media_object to array format to match the type
+        feature_media_object: mediaObject ? [{ object_key: mediaObject.object_key }] : null,
+        feature_image_url: imageUrl,
+        feature_image_width: mediaObject?.width || null,
+        feature_image_height: mediaObject?.height || null,
+      };
+    }) as PostWithMediaDimensions[] || [];
     totalCount = count || 0;
   }
 

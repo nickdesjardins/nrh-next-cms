@@ -114,6 +114,12 @@ export interface Post {
   feature_media_object?: { object_key: string }[] | null; // Media object(s) for feature_image_id, expected to be 0 or 1 item
 }
 
+// Extended Post type that includes computed fields from JOINs with media table
+export interface PostWithMediaDimensions extends Post {
+  feature_image_width?: number | null;
+  feature_image_height?: number | null;
+}
+
 export interface Media {
   id: string; // uuid
   uploader_id?: string | null;
