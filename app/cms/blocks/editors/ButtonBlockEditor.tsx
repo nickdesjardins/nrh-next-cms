@@ -1,4 +1,4 @@
-// app/cms/blocks/components/ButtonBlockEditor.tsx
+// app/cms/blocks/editors/ButtonBlockEditor.tsx
 "use client";
 
 import React from 'react'; // Added React import for JSX

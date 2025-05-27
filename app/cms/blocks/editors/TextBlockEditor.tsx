@@ -1,10 +1,10 @@
-// app/cms/blocks/components/TextBlockEditor.tsx
+// app/cms/blocks/editors/TextBlockEditor.tsx
 "use client";
 
 import React from 'react'; // Ensure React is imported for JSX
 import { Label } from "@/components/ui/label";
 import type { TextBlockContent } from "@/utils/supabase/types";
-import RichTextEditor from "./RichTextEditor"; // Import the new Tiptap editor
+import RichTextEditor from "../components/RichTextEditor"; // Import the new Tiptap editor
 
 interface TextBlockEditorProps {
   content: Partial<TextBlockContent>;

@@ -1,4 +1,4 @@
-// app/cms/blocks/components/HeadingBlockEditor.tsx
+// app/cms/blocks/editors/HeadingBlockEditor.tsx
 "use client";
 
 import React from "react";

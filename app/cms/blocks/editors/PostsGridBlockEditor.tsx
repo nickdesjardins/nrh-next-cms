@@ -1,6 +1,6 @@
-// app/cms/blocks/components/PostsGridBlockEditor.tsx
+// app/cms/blocks/editors/PostsGridBlockEditor.tsx
 import React from 'react';
-import type { Block } from '../../../../utils/supabase/types';
+import type { Block } from '@/utils/supabase/types';
 
 interface PostsGridBlockEditorProps {
   block: Block;

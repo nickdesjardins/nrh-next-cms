@@ -1,4 +1,4 @@
-// app/cms/blocks/components/ImageBlockSelector.tsx
+// app/cms/blocks/editors/ImageBlockEditor.tsx
 "use client";
 
 import React, { useState, useEffect } from 'react'; // Removed useTransition as it's not used here
@@ -14,12 +14,12 @@ import { Separator } from '@/components/ui/separator'; // For visual separation
 
 const R2_BASE_URL = process.env.NEXT_PUBLIC_R2_BASE_URL || "";
 
-interface ImageBlockSelectorProps {
+interface ImageBlockEditorProps {
   content: Partial<ImageBlockContent>;
   onChange: (newContent: ImageBlockContent) => void;
 }
 
-export default function ImageBlockSelector({ content, onChange }: ImageBlockSelectorProps) {
+export default function ImageBlockEditor({ content, onChange }: ImageBlockEditorProps) {
   const [selectedMediaObjectKey, setSelectedMediaObjectKey] = useState<string | null | undefined>(content.object_key);
   const [isLoadingMediaDetails, setIsLoadingMediaDetails] = useState(false); // For fetching details if only ID is present
 

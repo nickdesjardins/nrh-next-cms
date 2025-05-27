@@ -1,4 +1,6 @@
 // utils/supabase/types.ts
+import { availableBlockTypes, type BlockType } from '@/lib/blocks/blockRegistry';
+
 export type UserRole = 'ADMIN' | 'WRITER' | 'USER';
 
 export interface Profile {
@@ -23,8 +25,12 @@ export interface Language {
 export type PageStatus = 'draft' | 'published' | 'archived';
 
 // --- Block Type Definitions ---
-export const availableBlockTypes = ["text", "heading", "image", "button", "posts_grid"] as const;
-export type BlockType = (typeof availableBlockTypes)[number];
+/**
+ * Available block types are now imported from the central block registry.
+ * This ensures consistency across the application and makes it easier to add new block types.
+ * @see {@link @/lib/blocks/blockRegistry.ts} for the complete block definitions
+ */
+export { availableBlockTypes, type BlockType } from '@/lib/blocks/blockRegistry';
 
 export interface TextBlockContent {
   html_content: string;
@@ -71,7 +77,13 @@ export interface Block {
   post_id?: number | null;
   language_id: number;
   block_type: BlockType;
-  content: Partial<ImageBlockContent> | Partial<TextBlockContent> | Partial<HeadingBlockContent> | Partial<ButtonBlockContent> | Partial<PostsGridBlockContent> | any;
+  /**
+   * Block content is now typed as a generic Record to support the registry-based block system.
+   * This allows for flexible content structures while maintaining type safety at the component level.
+   * Individual block content interfaces (TextBlockContent, HeadingBlockContent, etc.) are still
+   * available for use in specific components that need strict typing.
+   */
+  content: Record<string, any>;
   order: number;
   created_at: string;
   updated_at: string;

@@ -4,6 +4,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
 import type { Block, BlockType } from "@/utils/supabase/types";
+import { getInitialContent, isValidBlockType } from "@/lib/blocks/blockRegistry";
 
 // Helper to verify user can edit the parent (page/post)
 async function canEditParent(
@@ -30,7 +31,7 @@ interface CreateBlockPayload {
   post_id?: number | null;
   language_id: number;
   block_type: BlockType;
-  content: any; // Initially any, will be structured based on block_type
+  content: object; // Content structure defined by block registry
   order: number;
 }
 
@@ -43,25 +44,15 @@ export async function createBlockForPage(pageId: number, languageId: number, blo
     return { error: "Unauthorized to add blocks to this page." };
   }
 
-  let initialContent: any = {};
-  switch (blockType) {
-    case "text":
-      initialContent = { html_content: "<p>New text block...</p>" };
-      break;
-    case "heading":
-      initialContent = { level: 2, text_content: "New Heading" };
-      break;
-    case "image":
-      initialContent = { media_id: null, alt_text: "", caption: "" };
-      break;
-    case "button":
-      initialContent = { text: "Click Me", url: "#", variant: "default", size: "default" };
-      break;
-    case "posts_grid":
-      initialContent = { postsPerPage: 12, columns: 3, showPagination: true, title: "Recent Posts" };
-      break;
-    default:
-      return { error: "Unknown block type." };
+  // Validate block type using registry
+  if (!isValidBlockType(blockType)) {
+    return { error: "Unknown block type." };
+  }
+
+  // Get initial content from registry
+  const initialContent = getInitialContent(blockType);
+  if (!initialContent) {
+    return { error: "Failed to get initial content for block type." };
   }
 
   const payload: CreateBlockPayload = {
@@ -92,25 +83,15 @@ export async function createBlockForPost(postId: number, languageId: number, blo
     return { error: "Unauthorized to add blocks to this post." };
   }
 
-  let initialContent: any = {};
-  switch (blockType) {
-    case "text":
-      initialContent = { html_content: "<p>New text block...</p>" };
-      break;
-    case "heading":
-      initialContent = { level: 2, text_content: "New Heading" };
-      break;
-    case "image":
-      initialContent = { media_id: null, alt_text: "", caption: "" };
-      break;
-    case "button":
-      initialContent = { text: "Click Me", url: "#", variant: "default", size: "default" };
-      break;
-    case "posts_grid":
-      initialContent = { postsPerPage: 12, columns: 3, showPagination: true, title: "Recent Posts" };
-      break;
-    default:
-      return { error: "Unknown block type." };
+  // Validate block type using registry
+  if (!isValidBlockType(blockType)) {
+    return { error: "Unknown block type." };
+  }
+
+  // Get initial content from registry
+  const initialContent = getInitialContent(blockType);
+  if (!initialContent) {
+    return { error: "Failed to get initial content for block type." };
   }
 
   const payload: CreateBlockPayload = {
