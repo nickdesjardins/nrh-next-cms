@@ -16,6 +16,7 @@ import {
 import { Label } from "@/components/ui/label";
 import {
   createBlockForPage,
+  createBlockForPost,
   updateBlock, // Added updateBlock
   updateMultipleBlockOrders,
 } from "@/app/cms/blocks/actions";
@@ -76,8 +77,10 @@ export default function BlockEditorArea({ parentId, parentType, initialBlocks, l
       let result;
       if (parentType === "page") {
         result = await createBlockForPage(parentId, languageId, selectedBlockTypeToAdd as BlockType, newOrder);
+      } else if (parentType === "post") {
+        result = await createBlockForPost(parentId, languageId, selectedBlockTypeToAdd as BlockType, newOrder);
       } else {
-        console.warn("Block creation for posts not yet implemented");
+        console.error("Unknown parent type:", parentType);
         return;
       }
       if (result && result.success && result.newBlock) {

@@ -83,6 +83,54 @@ export async function createBlockForPage(pageId: number, languageId: number, blo
   return { success: true, newBlock: data as Block };
 }
 
+export async function createBlockForPost(postId: number, languageId: number, blockType: BlockType, order: number) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) return { error: "User not authenticated." };
+  if (!(await canEditParent(supabase, user.id, null, postId))) {
+    return { error: "Unauthorized to add blocks to this post." };
+  }
+
+  let initialContent: any = {};
+  switch (blockType) {
+    case "text":
+      initialContent = { html_content: "<p>New text block...</p>" };
+      break;
+    case "heading":
+      initialContent = { level: 2, text_content: "New Heading" };
+      break;
+    case "image":
+      initialContent = { media_id: null, alt_text: "", caption: "" };
+      break;
+    case "button":
+      initialContent = { text: "Click Me", url: "#", variant: "default", size: "default" };
+      break;
+    case "posts_grid":
+      initialContent = { postsPerPage: 12, columns: 3, showPagination: true, title: "Recent Posts" };
+      break;
+    default:
+      return { error: "Unknown block type." };
+  }
+
+  const payload: CreateBlockPayload = {
+    post_id: postId,
+    language_id: languageId,
+    block_type: blockType,
+    content: initialContent,
+    order: order,
+  };
+
+  const { data, error } = await supabase.from("blocks").insert(payload).select().single();
+
+  if (error) {
+    console.error("Error creating block:", error);
+    return { error: `Failed to create block: ${error.message}` };
+  }
+
+  revalidatePath(`/cms/posts/${postId}/edit`);
+  return { success: true, newBlock: data as Block };
+}
 
 export async function updateBlock(blockId: number, newContent: any, pageId?: number | null, postId?: number | null) {
   const supabase = createClient();

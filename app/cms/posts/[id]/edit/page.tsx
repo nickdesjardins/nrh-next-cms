@@ -31,6 +31,9 @@ async function getPostDataWithBlocks(id: number): Promise<PostWithBlocks | null>
     .eq("id", id)
     .order('order', { foreignTable: 'blocks', ascending: true })
     .single();
+// ROO: Log raw Supabase response for postData and postError
+  console.log("DEBUG getPostDataWithBlocks - Supabase query result for postData:", JSON.stringify(postData, null, 2));
+  console.log("DEBUG getPostDataWithBlocks - Supabase query error for postError:", JSON.stringify(postError, null, 2));
 
   if (postError) {
     console.error("Error fetching post with blocks for edit:", postError);
@@ -108,6 +111,13 @@ export default async function EditPostPage(props: { params: Promise<{ id: string
   const updatePostWithId = updatePost.bind(null, postId);
   const publicPostUrl = `/blog/${postWithBlocks.slug}`;
 
+// ROO: Log data before rendering BlockEditorArea
+  console.log("DEBUG EditPostPage - Post ID:", postWithBlocks.id);
+  console.log("DEBUG EditPostPage - Language ID:", postWithBlocks.language_id);
+  console.log("DEBUG EditPostPage - Initial Blocks count:", postWithBlocks.blocks ? postWithBlocks.blocks.length : 'N/A');
+  if (postWithBlocks.blocks && postWithBlocks.blocks.length > 0) {
+    console.log("DEBUG EditPostPage - First block ID:", postWithBlocks.blocks[0].id);
+  }
   return (
     <div className="space-y-8">
       <div className="flex justify-between items-center flex-wrap gap-4">
