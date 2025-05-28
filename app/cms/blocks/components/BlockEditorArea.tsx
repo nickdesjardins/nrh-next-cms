@@ -1,11 +1,21 @@
 // app/cms/blocks/components/BlockEditorArea.tsx
 "use client";
 
-import React, { useState, useTransition, useEffect } from "react"; // Ensure React is imported
-import type { Block, BlockType } from "@/utils/supabase/types";
+import React, { useState, useTransition, useEffect, ComponentType } from "react"; // Ensure React is imported
+import type { Block, BlockType } from "@/utils/supabase/types"; // Added SectionBlockContent
 import { availableBlockTypes } from "@/utils/supabase/types";
+import { getBlockDefinition, type SectionBlockContent } from "@/lib/blocks/blockRegistry"; // Added for dynamic editor loading
 import { Button } from "@/components/ui/button";
 import { PlusCircle } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  // DialogTrigger, // Not explicitly used for triggering, open state is controlled
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -49,18 +59,159 @@ interface BlockEditorAreaProps {
   languageId: number;
 }
 
+interface NestedBlockData {
+  block_type: BlockType;
+  content: Record<string, any>;
+  temp_id?: string;
+}
+
+interface EditingNestedBlockInfo {
+  parentBlockId: string; // This is the string ID of the parent Section block
+  columnIndex: number;
+  blockIndexInColumn: number;
+  blockData: NestedBlockData; // Type of the individual block within the column
+}
+
 export default function BlockEditorArea({ parentId, parentType, initialBlocks, languageId }: BlockEditorAreaProps) {
   const [blocks, setBlocks] = useState<Block[]>(() => initialBlocks.sort((a, b) => a.order - b.order));
   const [isPending, startTransition] = useTransition();
+  const [isSavingNested, startSavingNestedTransition] = useTransition();
   const [selectedBlockTypeToAdd, setSelectedBlockTypeToAdd] = useState<BlockType | "">("");
 
   const [editingBlockId, setEditingBlockId] = useState<number | null>(null);
   const [tempBlockContent, setTempBlockContent] = useState<any>(null);
+  const [editingNestedBlockInfo, setEditingNestedBlockInfo] = useState<EditingNestedBlockInfo | null>(null);
+  const [NestedBlockEditorComponent, setNestedBlockEditorComponent] = useState<ComponentType<any> | null>(null);
+  const [tempNestedBlockContent, setTempNestedBlockContent] = useState<any>(null);
+
 
   // Update local state if initialBlocks prop changes (e.g., after parent form save)
    useEffect(() => {
     setBlocks(initialBlocks.sort((a, b) => a.order - b.order));
   }, [initialBlocks]);
+
+  useEffect(() => {
+    if (editingNestedBlockInfo) {
+      const blockType = editingNestedBlockInfo.blockData.block_type;
+      const blockDef = getBlockDefinition(blockType);
+
+      if (blockDef && blockDef.editorComponentFilename) {
+        import(`@/app/cms/blocks/editors/${blockDef.editorComponentFilename}`)
+          .then(module => {
+            setNestedBlockEditorComponent(() => module.default);
+            // Initialize tempNestedBlockContent with a deep copy
+            setTempNestedBlockContent(JSON.parse(JSON.stringify(editingNestedBlockInfo.blockData.content)));
+          })
+          .catch(err => {
+            console.error(`Failed to load editor component for ${blockType}:`, err);
+            setNestedBlockEditorComponent(null);
+            setTempNestedBlockContent(null);
+            // Optionally, close the modal or show an error
+            setEditingNestedBlockInfo(null);
+            alert(`Error: Could not load editor for ${blockDef.label || blockType}.`);
+          });
+      } else {
+        console.warn(`No editor component filename defined for block type: ${blockType}`);
+        setNestedBlockEditorComponent(null);
+        setTempNestedBlockContent(null);
+        setEditingNestedBlockInfo(null);
+        alert(`Error: Editor not configured for ${blockType}.`);
+      }
+    } else {
+      setNestedBlockEditorComponent(null);
+      setTempNestedBlockContent(null);
+    }
+  }, [editingNestedBlockInfo]);
+
+  const handleSaveNestedBlock = () => {
+    if (!editingNestedBlockInfo || tempNestedBlockContent === null) {
+      console.warn("Missing info for saving nested block", { editingNestedBlockInfo, tempNestedBlockContent });
+      return;
+    }
+
+    startSavingNestedTransition(() => {
+      const { parentBlockId, columnIndex, blockIndexInColumn } = editingNestedBlockInfo;
+
+      // Create a deep copy of the blocks to modify
+      const updatedBlocks = JSON.parse(JSON.stringify(blocks)) as Block[];
+
+      const parentSectionBlockIndex = updatedBlocks.findIndex(b => String(b.id) === parentBlockId && b.block_type === 'section');
+
+      if (parentSectionBlockIndex === -1) {
+        console.error("Parent section block not found for saving nested block:", parentBlockId);
+        alert("Error: Could not find the parent section block to save changes.");
+        return;
+      }
+
+      const parentSectionBlock = updatedBlocks[parentSectionBlockIndex];
+      // Ensure content is treated as SectionBlockContent
+      const sectionContent = parentSectionBlock.content as SectionBlockContent;
+
+
+      // Ensure column_blocks and the specific column exist
+      if (!sectionContent.column_blocks || !sectionContent.column_blocks[columnIndex]) {
+        console.error("Column blocks or specific column not found in parent section block:", sectionContent);
+        alert("Error: Could not find the column structure to save changes.");
+        return;
+      }
+
+      // Create a deep copy of the column_blocks to avoid direct state mutation issues
+      const copiedColumnBlocks = JSON.parse(JSON.stringify(sectionContent.column_blocks)) as SectionBlockContent['column_blocks'];
+
+      if (!copiedColumnBlocks[columnIndex] || !copiedColumnBlocks[columnIndex][blockIndexInColumn]) {
+          console.error("Nested block not found at specified indices for saving:", { columnIndex, blockIndexInColumn });
+          alert("Error: Could not find the nested block to save changes.");
+          return;
+      }
+
+      // Update the content of the specific nested block
+      copiedColumnBlocks[columnIndex][blockIndexInColumn].content = tempNestedBlockContent;
+
+      // Update the parent section block's content
+      parentSectionBlock.content = { ...sectionContent, column_blocks: copiedColumnBlocks };
+
+
+      // Update the local 'blocks' state optimistically
+      const newBlocksState = updatedBlocks.map(b =>
+        b.id === parentSectionBlock.id ? parentSectionBlock : b
+      ).sort((a,b) => a.order - b.order);
+      setBlocks(newBlocksState);
+
+
+      // Persist the change to the parentSectionBlock using updateBlock action
+      startTransition(async () => {
+        try {
+          const result = await updateBlock(
+            parentSectionBlock.id, // ID of the parent section block
+            parentSectionBlock.content, // Its new content (which now includes the updated nested block)
+            parentType === "page" ? parentId : null,
+            parentType === "post" ? parentId : null
+          );
+
+          if (result && result.success && result.updatedBlock) {
+            // Server confirmed save, update state with server's version of the block
+            setBlocks(prevBlocks =>
+              prevBlocks.map(b => (b.id === parentSectionBlock.id ? result.updatedBlock as Block : b)).sort((a, b) => a.order - b.order)
+            );
+            setEditingNestedBlockInfo(null); // Close modal
+          } else if (result?.error) {
+            alert(`Error saving nested block changes: ${result.error}`);
+            // Revert optimistic update if the save failed by refetching or using original blocks
+            // For simplicity, current optimistic update remains, but a robust solution might revert.
+            console.error("Reverting optimistic update might be needed here.");
+            setBlocks(blocks.sort((a,b)=>a.order-b.order)); // Basic revert to previous state
+          } else {
+            alert("An unknown error occurred while saving nested block changes.");
+            setBlocks(blocks.sort((a,b)=>a.order-b.order));
+          }
+        } catch (error) {
+          console.error("Failed to save nested block changes:", error);
+          alert("A critical error occurred while saving nested block changes. Please try again.");
+          setBlocks(blocks.sort((a,b)=>a.order-b.order));
+        }
+      });
+    });
+  };
 
 
   const sensors = useSensors(
@@ -210,6 +361,31 @@ export default function BlockEditorArea({ parentId, parentType, initialBlocks, l
     }
   }
 
+  const handleEditNestedBlock = (parentBlockIdStr: string, columnIndex: number, blockIndexInColumn: number) => {
+    const parentSectionBlock = blocks.find(b => String(b.id) === parentBlockIdStr && b.block_type === 'section');
+
+    if (parentSectionBlock) {
+      const sectionContent = parentSectionBlock.content as SectionBlockContent;
+      if (sectionContent.column_blocks &&
+          sectionContent.column_blocks[columnIndex] &&
+          sectionContent.column_blocks[columnIndex][blockIndexInColumn]) {
+        const nestedBlockData = sectionContent.column_blocks[columnIndex][blockIndexInColumn];
+        setEditingNestedBlockInfo({
+          parentBlockId: parentBlockIdStr,
+          columnIndex,
+          blockIndexInColumn,
+          blockData: nestedBlockData,
+        });
+      } else {
+        console.error("Nested block not found at specified indices:", { parentBlockIdStr, columnIndex, blockIndexInColumn });
+        alert("Error: Could not find the nested block to edit.");
+      }
+    } else {
+      console.error("Parent section block not found:", parentBlockIdStr);
+      alert("Error: Could not find the parent section block.");
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-lg border dark:border-slate-700">
@@ -274,11 +450,64 @@ export default function BlockEditorArea({ parentId, parentType, initialBlocks, l
                         });
                     });
                 }}
+                onEditNestedBlock={handleEditNestedBlock} // Pass the new handler
               />
             ))}
           </div>
         </SortableContext>
       </DndContext>
+
+      {editingNestedBlockInfo && (
+        <Dialog open={!!editingNestedBlockInfo} onOpenChange={(isOpen) => {
+          if (!isOpen) {
+            setEditingNestedBlockInfo(null); // Also reset if closed via 'x' or overlay click
+            setNestedBlockEditorComponent(null);
+            setTempNestedBlockContent(null);
+          }
+        }}>
+          <DialogContent className="sm:max-w-[625px] md:max-w-[725px] lg:max-w-[900px]">
+            <DialogHeader>
+              <DialogTitle>
+                Editing: {getBlockDefinition(editingNestedBlockInfo.blockData.block_type)?.label || editingNestedBlockInfo.blockData.block_type.replace("_", " ")}
+              </DialogTitle>
+              <DialogDescription>
+                Modify the content of this nested block. Changes will be saved to the parent Section block.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4 min-h-[300px]">
+              {NestedBlockEditorComponent && tempNestedBlockContent !== null ? (
+                <NestedBlockEditorComponent
+                  content={tempNestedBlockContent}
+                  onChange={setTempNestedBlockContent}
+                  // Some editors might need the full block or more context.
+                  // For now, this is the common pattern.
+                  // blockData={editingNestedBlockInfo.blockData} // Example if full data needed
+                  // languageId={languageId} // Example if languageId needed
+                />
+              ) : (
+                <p>Loading editor...</p>
+              )}
+              {/* Debugging info:
+              <pre className="mt-4 p-2 bg-slate-100 dark:bg-slate-800 rounded text-xs overflow-auto max-h-[200px]">
+                <strong>Temp Nested Content:</strong><br/>
+                {JSON.stringify(tempNestedBlockContent, null, 2)}
+              </pre>
+              */}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => {
+                setEditingNestedBlockInfo(null);
+                // No need to reset components here, useEffect handles it
+              }}>
+                Cancel
+              </Button>
+              <Button onClick={handleSaveNestedBlock} disabled={isSavingNested || isPending}>
+                {isSavingNested ? "Saving..." : "Save Nested Block"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

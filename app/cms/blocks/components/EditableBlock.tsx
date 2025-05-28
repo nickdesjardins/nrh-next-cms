@@ -21,6 +21,7 @@ export interface EditableBlockProps {
   tempContent: any;
   onTempContentChange: (newContent: any) => void;
   dragHandleProps?: any; // For dnd-kit: spread {...attributes} {...listeners}
+  onEditNestedBlock?: (parentBlockId: string, columnIndex: number, blockIndexInColumn: number) => void;
 }
 
 export default function EditableBlock({
@@ -33,6 +34,7 @@ export default function EditableBlock({
   tempContent,
   onTempContentChange,
   dragHandleProps,
+  onEditNestedBlock,
 }: EditableBlockProps) {
 
   const [EditorComponent, setEditorComponent] = useState<React.ComponentType<any> | null>(null);
@@ -111,6 +113,113 @@ export default function EditableBlock({
     const blockDefinition = getBlockDefinition(block.block_type as any);
     const blockLabel = blockDefinition?.label || block.block_type;
 
+    // Special preview for section blocks
+    if (block.block_type === 'section' && block.content) {
+      const sectionContent = block.content as any; // SectionBlockContent type
+      const columnBlocks = sectionContent.column_blocks || [];
+      const desktopColumns = sectionContent.responsive_columns?.desktop || columnBlocks.length;
+
+      return (
+        <div className="py-4 space-y-3 min-h-[120px] border border-dashed rounded-md bg-muted/20">
+          <div className="text-center">
+            <p className="text-sm font-medium text-muted-foreground">{blockLabel}</p>
+            <p className="text-xs text-muted-foreground">
+              {desktopColumns} column{desktopColumns !== 1 ? 's' : ''} • Click edit to modify
+            </p>
+          </div>
+          
+          {/* Column preview grid */}
+          <div className={`grid gap-2 px-4 ${
+            desktopColumns === 1 ? 'grid-cols-1' :
+            desktopColumns === 2 ? 'grid-cols-2' :
+            desktopColumns === 3 ? 'grid-cols-3' :
+            'grid-cols-4'
+          }`}>
+            {Array.from({ length: desktopColumns }, (_, columnIndex) => {
+              const columnContent = columnBlocks[columnIndex] || [];
+              
+              return (
+                <div key={columnIndex} className="border border-gray-200 dark:border-gray-700 rounded bg-white dark:bg-gray-900 p-2 min-h-[60px]">
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                    Col {columnIndex + 1}
+                  </div>
+                  {columnContent.length === 0 ? (
+                    <div className="text-xs text-gray-400 italic">Empty</div>
+                  ) : (
+                    <div className="space-y-1">
+                      {columnContent.slice(0, 2).map((innerBlock: any, blockIndexInColumn: number) => {
+                        let preview = '';
+                        
+                        // Generate preview based on block type
+                        switch (innerBlock.block_type) {
+                          case 'text':
+                            const htmlContent = innerBlock.content?.html_content || '';
+                            const textContent = htmlContent.replace(/<[^>]*>/g, ''); // Strip HTML tags
+                            preview = textContent.substring(0, 30) + (textContent.length > 30 ? '...' : '');
+                            break;
+                          case 'heading':
+                            const headingText = innerBlock.content?.text_content || 'Empty heading';
+                            const level = innerBlock.content?.level || 1;
+                            preview = `H${level}: ${headingText.substring(0, 20) + (headingText.length > 20 ? '...' : '')}`;
+                            break;
+                          case 'image':
+                            preview = innerBlock.content?.alt_text || (innerBlock.content?.media_id ? 'Image' : 'No image');
+                            break;
+                          case 'button':
+                            preview = `Button: ${innerBlock.content?.text || 'No text'}`;
+                            break;
+                          case 'video_embed':
+                            preview = `Video: ${innerBlock.content?.title || innerBlock.content?.url || 'No URL'}`;
+                            break;
+                          case 'posts_grid':
+                            const cols = innerBlock.content?.columns || 3;
+                            const posts = innerBlock.content?.postsPerPage || 12;
+                            preview = `Posts: ${cols} cols, ${posts} posts`;
+                            break;
+                          default:
+                            preview = innerBlock.block_type;
+                        }
+                        
+                        const canEditNested = typeof onEditNestedBlock === 'function';
+                        const handleClick = canEditNested
+                          ? () => onEditNestedBlock(String(block.id), columnIndex, blockIndexInColumn)
+                          : undefined;
+
+                        return (
+                          <div
+                            key={blockIndexInColumn}
+                            className={`text-xs text-gray-600 dark:text-gray-300 truncate p-1 rounded ${
+                              canEditNested ? 'cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800' : ''
+                            }`}
+                            onClick={handleClick}
+                            title={canEditNested ? `Edit this ${innerBlock.block_type} block` : undefined}
+                          >
+                            <span className="font-medium capitalize">{innerBlock.block_type}:</span> {preview}
+                          </div>
+                        );
+                      })}
+                      {columnContent.length > 2 && (
+                        <div className="text-xs text-gray-400">
+                          +{columnContent.length - 2} more
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          
+          <div className="text-center">
+            <Button variant="outline" size="sm" onClick={() => onSetEditing(true)}>
+              Edit Section
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
+    // Default preview for other block types
     return (
       <div className="py-4 flex flex-col items-center justify-center space-y-2 min-h-[80px] border border-dashed rounded-md bg-muted/20">
         <div className="text-center">
