@@ -1,19 +1,28 @@
 // app/cms/blocks/components/RichTextEditor.tsx
+// User needs to run: npm install @tiptap/extension-color @tiptap/extension-text-style
 "use client";
 
-import React, { useState, useCallback, useEffect } from 'react'; // Added useState, useCallback
+import React, { useState, useCallback, useEffect } from 'react';
 import { useEditor, EditorContent, Editor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import ImageExtension from '@tiptap/extension-image'; // Tiptap Image Extension
+import ImageExtension from '@tiptap/extension-image';
+import Color from '@tiptap/extension-color';
+import TextStyle from '@tiptap/extension-text-style';
 import {
-  Bold, Italic, Strikethrough, Code, List, ListOrdered, Quote, Undo, Redo, Pilcrow, Image as ImageIconLucide, // ImageIconLucide for the toolbar
-  Search, CheckCircle, X as XIcon // For Media Library Modal
+  Bold, Italic, Strikethrough, Code, List, ListOrdered, Quote, Undo, Redo, Pilcrow, Image as ImageIconLucide,
+  Search, CheckCircle, X as XIcon, Palette
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import type { Media } from '@/utils/supabase/types';
-import { createClient as createBrowserClient } from '@/utils/supabase/client';
+import { Button } from '../../../../components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../../../../components/ui/dropdown-menu';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '../../../../components/ui/dialog';
+import { Input } from '../../../../components/ui/input';
+import type { Media } from '../../../../utils/supabase/types';
+import { createClient as createBrowserClient } from '../../../../utils/supabase/client';
 
 const R2_BASE_URL = process.env.NEXT_PUBLIC_R2_BASE_URL || "";
 
@@ -23,7 +32,6 @@ interface RichTextEditorProps {
   editable?: boolean;
 }
 
-// Media Library Modal Component (simplified version, could be extracted)
 const MediaLibraryModal = ({ editor }: { editor: Editor | null }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [mediaLibrary, setMediaLibrary] = useState<Media[]>([]);
@@ -32,7 +40,7 @@ const MediaLibraryModal = ({ editor }: { editor: Editor | null }) => {
   const supabase = createBrowserClient();
 
   const fetchLibrary = useCallback(async () => {
-    if (!isModalOpen) return; // Only fetch if modal is open
+    if (!isModalOpen) return;
     setIsLoadingMedia(true);
     let query = supabase.from('media').select('*').order('created_at', { ascending: false }).limit(20);
     if (searchTerm) {
@@ -46,7 +54,7 @@ const MediaLibraryModal = ({ editor }: { editor: Editor | null }) => {
 
   useEffect(() => {
     fetchLibrary();
-  }, [fetchLibrary]); // Dependencies: isModalOpen, searchTerm, supabase (via useCallback)
+  }, [fetchLibrary]);
 
   const handleSelectMedia = (mediaItem: Media) => {
     if (editor && mediaItem.file_type?.startsWith("image/")) {
@@ -83,7 +91,7 @@ const MediaLibraryModal = ({ editor }: { editor: Editor | null }) => {
           <div className="flex-grow flex items-center justify-center"><p>No media found.</p></div>
         ) : (
           <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 overflow-y-auto flex-grow pr-2">
-            {mediaLibrary.filter(m => m.file_type?.startsWith("image/")).map((media) => ( // Filter for images
+            {mediaLibrary.filter(m => m.file_type?.startsWith("image/")).map((media) => (
               <button
                 key={media.id}
                 type="button"
@@ -121,45 +129,95 @@ const MenuBar = ({ editor }: { editor: Editor | null }) => {
     return null;
   }
   const iconSize = "h-4 w-4";
+  const themeColors = [
+    { value: 'primary', label: 'Primary', swatchClass: 'bg-primary text-primary-foreground' },
+    { value: 'secondary', label: 'Secondary', swatchClass: 'bg-secondary text-secondary-foreground' },
+    { value: 'accent', label: 'Accent', swatchClass: 'bg-accent text-accent-foreground' },
+    { value: 'muted', label: 'Muted', swatchClass: 'bg-muted-foreground text-muted' },
+    { value: 'destructive', label: 'Destructive', swatchClass: 'bg-destructive text-destructive-foreground' },
+    { value: 'background', label: 'Background', swatchClass: 'bg-background text-foreground' },
+  ];
+
+  const activeColor = themeColors.find(color => editor.isActive('textStyle', { color: `hsl(var(--${color.value}))` }));
+
   return (
     <div className="flex flex-wrap gap-1 p-2 border-b border-input bg-background rounded-t-md mb-0">
-      <Button type="button" variant={editor.isActive('bold') ? 'secondary' : 'ghost'} size="icon" onClick={() => editor.chain().focus().toggleBold().run()} disabled={!editor.can().chain().focus().toggleBold().run()} title="Bold">
+      <Button type="button" variant={editor.isActive('bold') ? 'secondary' : 'ghost'} size="icon" onClick={() => editor.chain().focus().toggleBold().run()} disabled={!editor.can().chain().focus().toggleBold().run() || !editor.isEditable} title="Bold">
         <Bold className={iconSize} />
       </Button>
-      <Button type="button" variant={editor.isActive('italic') ? 'secondary' : 'ghost'} size="icon" onClick={() => editor.chain().focus().toggleItalic().run()} disabled={!editor.can().chain().focus().toggleItalic().run()} title="Italic">
+      <Button type="button" variant={editor.isActive('italic') ? 'secondary' : 'ghost'} size="icon" onClick={() => editor.chain().focus().toggleItalic().run()} disabled={!editor.can().chain().focus().toggleItalic().run() || !editor.isEditable} title="Italic">
         <Italic className={iconSize} />
       </Button>
-      <Button type="button" variant={editor.isActive('strike') ? 'secondary' : 'ghost'} size="icon" onClick={() => editor.chain().focus().toggleStrike().run()} disabled={!editor.can().chain().focus().toggleStrike().run()} title="Strikethrough">
+      <Button type="button" variant={editor.isActive('strike') ? 'secondary' : 'ghost'} size="icon" onClick={() => editor.chain().focus().toggleStrike().run()} disabled={!editor.can().chain().focus().toggleStrike().run() || !editor.isEditable} title="Strikethrough">
         <Strikethrough className={iconSize} />
       </Button>
-      <Button type="button" variant={editor.isActive('code') ? 'secondary' : 'ghost'} size="icon" onClick={() => editor.chain().focus().toggleCode().run()} disabled={!editor.can().chain().focus().toggleCode().run()} title="Code">
+      <Button type="button" variant={editor.isActive('code') ? 'secondary' : 'ghost'} size="icon" onClick={() => editor.chain().focus().toggleCode().run()} disabled={!editor.can().chain().focus().toggleCode().run() || !editor.isEditable} title="Code">
         <Code className={iconSize} />
       </Button>
-      <Button type="button" variant={editor.isActive('paragraph') ? 'secondary' : 'ghost'} size="icon" onClick={() => editor.chain().focus().setParagraph().run()} title="Paragraph">
+      <Button type="button" variant={editor.isActive('paragraph') ? 'secondary' : 'ghost'} size="icon" onClick={() => editor.chain().focus().setParagraph().run()} disabled={!editor.isEditable} title="Paragraph">
         <Pilcrow className={iconSize} />
       </Button>
       {[1, 2, 3, 4].map((level) => (
-        <Button key={level} type="button" variant={editor.isActive('heading', { level }) ? 'secondary' : 'ghost'} size="icon" onClick={() => editor.chain().focus().toggleHeading({ level: level as 1 | 2 | 3 | 4 }).run()} title={`Heading ${level}`} className="font-semibold w-8 h-8">
+        <Button key={level} type="button" variant={editor.isActive('heading', { level }) ? 'secondary' : 'ghost'} size="icon" onClick={() => editor.chain().focus().toggleHeading({ level: level as 1 | 2 | 3 | 4 }).run()} disabled={!editor.isEditable} title={`Heading ${level}`} className="font-semibold w-8 h-8">
           H{level}
         </Button>
       ))}
-      <Button type="button" variant={editor.isActive('bulletList') ? 'secondary' : 'ghost'} size="icon" onClick={() => editor.chain().focus().toggleBulletList().run()} title="Bullet List">
+      <Button type="button" variant={editor.isActive('bulletList') ? 'secondary' : 'ghost'} size="icon" onClick={() => editor.chain().focus().toggleBulletList().run()} disabled={!editor.isEditable} title="Bullet List">
         <List className={iconSize} />
       </Button>
-      <Button type="button" variant={editor.isActive('orderedList') ? 'secondary' : 'ghost'} size="icon" onClick={() => editor.chain().focus().toggleOrderedList().run()} title="Ordered List">
+      <Button type="button" variant={editor.isActive('orderedList') ? 'secondary' : 'ghost'} size="icon" onClick={() => editor.chain().focus().toggleOrderedList().run()} disabled={!editor.isEditable} title="Ordered List">
         <ListOrdered className={iconSize} />
       </Button>
-      <Button type="button" variant={editor.isActive('blockquote') ? 'secondary' : 'ghost'} size="icon" onClick={() => editor.chain().focus().toggleBlockquote().run()} title="Blockquote">
+      <Button type="button" variant={editor.isActive('blockquote') ? 'secondary' : 'ghost'} size="icon" onClick={() => editor.chain().focus().toggleBlockquote().run()} disabled={!editor.isEditable} title="Blockquote">
         <Quote className={iconSize} />
       </Button>
-      
-      {/* Add Image Button using MediaLibraryModal */}
+
+      {/* Theme Color Dropdown Picker */}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            disabled={!editor?.isEditable}
+            title="Text Color"
+            className="flex items-center justify-center"
+          >
+            <Palette className={iconSize} />
+            {activeColor ? (
+              <div className={`${activeColor.swatchClass.split(' ')[0]} w-3 h-3 rounded-sm ml-1 border border-border`}></div>
+            ) : (
+              <div className="w-3 h-3 rounded-sm ml-1 border border-border bg-transparent"></div> // Default/no color swatch
+            )}
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start">
+          {themeColors.map(color => (
+            <DropdownMenuItem
+              key={color.value}
+              onClick={() => editor.chain().focus().setColor(`hsl(var(--${color.value}))`).run()}
+              className="flex items-center cursor-pointer"
+            >
+              <div className={`${color.swatchClass.split(' ')[0]} w-4 h-4 rounded-sm mr-2 border border-border`}></div>
+              <span>{color.label}</span>
+            </DropdownMenuItem>
+          ))}
+          <DropdownMenuItem
+            onClick={() => editor.chain().focus().unsetColor().run()}
+            className="flex items-center cursor-pointer"
+          >
+            <XIcon className={`${iconSize} mr-2`} />
+            <span>Unset Color</span>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
       <MediaLibraryModal editor={editor} />
 
-      <Button type="button" variant="ghost" size="icon" onClick={() => editor.chain().focus().undo().run()} disabled={!editor.can().undo()} title="Undo">
+      <Button type="button" variant="ghost" size="icon" onClick={() => editor.chain().focus().undo().run()} disabled={!editor.can().undo() || !editor.isEditable} title="Undo">
         <Undo className={iconSize} />
       </Button>
-      <Button type="button" variant="ghost" size="icon" onClick={() => editor.chain().focus().redo().run()} disabled={!editor.can().redo()} title="Redo">
+      <Button type="button" variant="ghost" size="icon" onClick={() => editor.chain().focus().redo().run()} disabled={!editor.can().redo() || !editor.isEditable} title="Redo">
         <Redo className={iconSize} />
       </Button>
     </div>
@@ -170,16 +228,15 @@ export default function RichTextEditor({ initialContent, onChange, editable = tr
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
-        // Configure StarterKit as needed
         // heading: { levels: [1, 2, 3, 4] },
       }),
       ImageExtension.configure({
-        // inline: true, // If you want images to be inline
-        // allowBase64: true, // If you were to support base64 uploads directly (not recommended for large images)
-        HTMLAttributes: { // Default attributes for the <img> tag
-            class: 'max-w-full h-auto rounded-md border my-4', // Example styling
+        HTMLAttributes: {
+            class: 'max-w-full h-auto rounded-md border my-4',
           },
       }),
+      TextStyle.configure(), // Explicitly adding TextStyle before Color
+      Color.configure({ types: ['textStyle'] }), // Color depends on TextStyle
     ],
     content: initialContent,
     editable: editable,
@@ -188,8 +245,6 @@ export default function RichTextEditor({ initialContent, onChange, editable = tr
     },
     editorProps: {
       attributes: {
-        // Apply Tailwind prose classes for rich text styling
-        // Ensure your globals.css has @tailwindcss/typography plugin enabled
         class: 'prose dark:prose-invert prose-sm sm:prose-base focus:outline-none min-h-[150px] p-3 bg-background',
       },
     },
