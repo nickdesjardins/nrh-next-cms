@@ -50,27 +50,16 @@ export const StyleTagNode = Node.create({
   },
 
   renderHTML({ HTMLAttributes, node }) {
-    // HTMLAttributes will contain resolved attributes like 'type', 'media' from addAttributes()
-    // node.attrs.cssContent contains the raw CSS string
+    // HTMLAttributes should contain resolved attributes like 'type', 'media' from addAttributes().
+    // node.attrs.cssContent contains the raw CSS string.
+    // We create a clean copy of HTMLAttributes to avoid mutating the passed-in object
+    // and ensure 'cssContent' is not accidentally included as an HTML attribute on the <style> tag.
+    const finalTagAttributes = { ...HTMLAttributes };
+    delete finalTagAttributes.cssContent; // Ensure cssContent is not an attribute
 
-    const styleElement = document.createElement('style');
-    
-    // Apply all attributes from HTMLAttributes (which are from addAttributes definitions)
-    // These are attributes of the <style> tag itself.
-    Object.entries(HTMLAttributes).forEach(([key, value]) => {
-      // Do not try to set cssContent as an attribute on the style tag
-      if (key === 'cssContent') return;
-
-      if (value !== null && value !== undefined) {
-        styleElement.setAttribute(key, String(value));
-      }
-    });
-    
-    // Set the inner content of the <style> tag
-    styleElement.innerHTML = node.attrs.cssContent;
-
-    // Tiptap can handle returning a DOM element directly.
-    return styleElement;
+    // Return DOMOutputSpec: ['tag', attributes, content]
+    // The content of the <style> tag is the cssContent.
+    return ['style', finalTagAttributes, node.attrs.cssContent || ''];
   },
 
   addNodeView() {
