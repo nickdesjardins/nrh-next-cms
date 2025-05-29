@@ -6,11 +6,12 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { useEditor, EditorContent, Editor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import ImageExtension from '@tiptap/extension-image';
+import { Mark, mergeAttributes } from '@tiptap/core'; // Added for FontSizeMark
 import Color from '@tiptap/extension-color';
 import TextStyle from '@tiptap/extension-text-style';
 import {
   Bold, Italic, Strikethrough, Code, List, ListOrdered, Quote, Undo, Redo, Pilcrow, Image as ImageIconLucide,
-  Search, CheckCircle, X as XIcon, Palette
+  Search, CheckCircle, X as XIcon, Palette, Baseline // Added Baseline icon
 } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
 import {
@@ -31,6 +32,84 @@ interface RichTextEditorProps {
   onChange: (htmlContent: string) => void;
   editable?: boolean;
 }
+
+// Custom Tiptap extension for Font Size
+export interface FontSizeOptions {
+  HTMLAttributes: Record<string, any>;
+}
+
+declare module '@tiptap/core' {
+  interface Commands<ReturnType> {
+    fontSize: {
+      setFontSize: (className: string) => ReturnType;
+      unsetFontSize: () => ReturnType;
+    };
+  }
+}
+
+export const FontSizeMark = Mark.create<FontSizeOptions>({
+  name: 'fontSize',
+
+  addOptions() {
+    return {
+      HTMLAttributes: {},
+    };
+  },
+
+  addAttributes() {
+    return {
+      'data-font-size': {
+        default: null,
+        parseHTML: element => (element as HTMLElement).getAttribute('data-font-size'),
+        renderHTML: attributes => {
+          if (!attributes['data-font-size']) {
+            return {};
+          }
+          return { class: attributes['data-font-size'] as string };
+        },
+      },
+    };
+  },
+
+  parseHTML() {
+    return [
+      {
+        tag: 'span[data-font-size]',
+        getAttrs: element => {
+          const fontSizeClass = (element as HTMLElement).getAttribute('data-font-size');
+          return fontSizeClass ? { 'data-font-size': fontSizeClass } : false;
+        },
+      },
+    ];
+  },
+
+  renderHTML({ HTMLAttributes }) {
+    return ['span', mergeAttributes(this.options.HTMLAttributes, HTMLAttributes), 0];
+  },
+
+  addCommands() {
+    return {
+      setFontSize: (className) => ({ commands }) => {
+        if (!className) {
+          return commands.setMark(this.name, { 'data-font-size': className });
+        }
+        return commands.setMark(this.name, { 'data-font-size': className });
+      },
+      unsetFontSize: () => ({ commands }) => {
+        return commands.unsetMark(this.name);
+      },
+    };
+  },
+});
+// End of FontSizeMark
+
+const fontSizes = [
+  { value: 'text-xs', label: 'X-Small', name: 'XS' },
+  { value: 'text-sm', label: 'Small', name: 'S' },
+  { value: 'text-base', label: 'Base', name: 'M' },
+  { value: 'text-lg', label: 'Large', name: 'L' },
+  { value: 'text-xl', label: 'X-Large', name: 'XL' },
+];
 
 const MediaLibraryModal = ({ editor }: { editor: Editor | null }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -139,6 +218,7 @@ const MenuBar = ({ editor }: { editor: Editor | null }) => {
   ];
 
   const activeColor = themeColors.find(color => editor.isActive('textStyle', { color: `hsl(var(--${color.value}))` }));
+  const activeFontSize = fontSizes.find(size => editor.isActive('fontSize', { 'data-font-size': size.value }));
 
   return (
     <div className="flex flex-wrap gap-1 p-2 border-b border-input bg-background rounded-t-md mb-0">
@@ -212,6 +292,45 @@ const MenuBar = ({ editor }: { editor: Editor | null }) => {
         </DropdownMenuContent>
       </DropdownMenu>
 
+      {/* Font Size Dropdown Picker */}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            disabled={!editor?.isEditable}
+            title="Font Size"
+            className="flex items-center justify-center w-auto px-2" // Adjusted for text
+          >
+            <Baseline className={iconSize} />
+            {activeFontSize ? (
+              <span className="ml-1 text-xs font-semibold">{activeFontSize.name}</span>
+            ) : (
+              <span className="ml-1 text-xs font-semibold">M</span> // Default to M if no specific size is active
+            )}
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start">
+          {fontSizes.map(size => (
+            <DropdownMenuItem
+              key={size.value}
+              onClick={() => editor.chain().focus().setFontSize(size.value).run()}
+              className="flex items-center cursor-pointer"
+            >
+              <span className={`${size.value} mr-2`}>{size.label}</span>
+            </DropdownMenuItem>
+          ))}
+          <DropdownMenuItem
+            onClick={() => editor.chain().focus().unsetFontSize().run()}
+            className="flex items-center cursor-pointer"
+          >
+            <XIcon className={`${iconSize} mr-2`} />
+            <span>Reset Size</span>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
       <MediaLibraryModal editor={editor} />
 
       <Button type="button" variant="ghost" size="icon" onClick={() => editor.chain().focus().undo().run()} disabled={!editor.can().undo() || !editor.isEditable} title="Undo">
@@ -237,6 +356,7 @@ export default function RichTextEditor({ initialContent, onChange, editable = tr
       }),
       TextStyle.configure(), // Explicitly adding TextStyle before Color
       Color.configure({ types: ['textStyle'] }), // Color depends on TextStyle
+      FontSizeMark.configure({}), // Add our custom FontSizeMark
     ],
     content: initialContent,
     editable: editable,

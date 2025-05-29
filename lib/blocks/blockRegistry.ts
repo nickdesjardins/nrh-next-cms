@@ -34,7 +34,7 @@ export interface HeadingBlockContent {
   /** Text alignment of the heading */
   textAlign?: 'left' | 'center' | 'right' | 'justify';
   /** Color of the heading text, based on theme colors */
-  textColor?: 'primary' | 'secondary' | 'accent' | 'muted' | 'destructive';
+  textColor?: 'primary' | 'secondary' | 'accent' | 'muted' | 'destructive' | 'background';
 }
 
 /**
@@ -222,7 +222,7 @@ export interface BlockDefinition<T = any> {
 export const blockRegistry: Record<BlockType, BlockDefinition> = {
   text: {
     type: "text",
-    label: "HTML Block",
+    label: "Rich Text Block",
     initialContent: { html_content: "<p>New text block...</p>" } as TextBlockContent,
     editorComponentFilename: "TextBlockEditor.tsx",
     rendererComponentFilename: "TextBlockRenderer.tsx",
@@ -230,7 +230,7 @@ export const blockRegistry: Record<BlockType, BlockDefinition> = {
       html_content: {
         type: 'string',
         required: true,
-        description: 'Raw HTML content for the text block',
+        description: 'Rich text content for the text block',
         default: '<p>New text block...</p>',
       },
     },
