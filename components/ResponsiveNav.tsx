@@ -115,6 +115,7 @@ export default function ResponsiveNav({
           {/* Only the label is a clickable link */}
           <AnimatedLink
             href={item.url}
+            prefetchOnIntersect={true}
             className="py-0 px-0 mr-2 focus:underline focus:outline-none"
             onClick={() => {
               toggleMobileMenu();
@@ -154,6 +155,7 @@ export default function ResponsiveNav({
       <div key={item.id} className={`relative group ${isSubmenu ? 'w-full' : ''}`}>
         <AnimatedLink
           href={item.url}
+          prefetchOnIntersect={true}
           className={`flex items-center justify-between hover:underline px-3 py-2 text-sm text-foreground ${isSubmenu ? 'w-full hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md' : ''}`}
         >
           {item.label}
@@ -191,12 +193,12 @@ export default function ResponsiveNav({
         {/* Right side: Auth, LangSwitcher (desktop), Hamburger (mobile) */}
         <div className="hidden md:flex items-center space-x-4">
           {canAccessCms && editPathDetails && (
-            <AnimatedLink href={editPathDetails.href} className="hover:underline font-semibold text-sm text-foreground mr-3">
+            <AnimatedLink href={editPathDetails.href} prefetchOnHover={true} className="hover:underline font-semibold text-sm text-foreground mr-3">
               {editPathDetails.label}
             </AnimatedLink>
           )}
           {canAccessCms && (
-            <AnimatedLink href={cmsDashboardLinkHref} className="hover:underline font-semibold text-sm text-foreground">
+            <AnimatedLink href={cmsDashboardLinkHref} prefetchOnHover={true} className="hover:underline font-semibold text-sm text-foreground">
               {cmsDashboardLinkLabel}
             </AnimatedLink>
           )}
@@ -249,6 +251,7 @@ export default function ResponsiveNav({
             {canAccessCms && editPathDetails && (
               <AnimatedLink
                 href={editPathDetails.href}
+                prefetchOnHover={true}
                 className="block px-3 py-2 rounded-md text-base font-medium text-foreground hover:bg-gray-100 dark:hover:bg-gray-700"
                 onClick={() => {
                   toggleMobileMenu();
@@ -260,6 +263,7 @@ export default function ResponsiveNav({
             {canAccessCms && (
               <AnimatedLink
                 href={cmsDashboardLinkHref}
+                prefetchOnHover={true}
                 className="block px-3 py-2 rounded-md text-base font-medium text-foreground hover:bg-gray-100 dark:hover:bg-gray-700"
                 onClick={toggleMobileMenu}
               >

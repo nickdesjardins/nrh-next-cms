@@ -78,7 +78,7 @@ const PostsGridClient: React.FC<PostsGridClientProps> = ({
     <div>
       <div className={`grid ${gridColsClass} gap-6`}>
         {posts.map((post) => (
-          <AnimatedLink href={`/blog/${post.slug}`} key={post.id} className="block group">
+          <AnimatedLink href={`/blog/${post.slug}`} key={post.id} className="block group" prefetchOnHover={true}>
             <div className="border rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow bg-card text-card-foreground">
               {/* Basic Post Card Structure - Enhanced with Feature Image */}
               {post.feature_image_url && typeof post.feature_image_width === 'number' && typeof post.feature_image_height === 'number' && post.feature_image_width > 0 && post.feature_image_height > 0 ? (

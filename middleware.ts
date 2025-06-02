@@ -123,6 +123,30 @@ export async function middleware(request: NextRequest) {
       finalResponse.cookies.set(LANGUAGE_COOKIE_KEY, currentLocale!, { path: '/', maxAge: 31536000, sameSite: 'lax' });
   }
 
+// Add custom headers for prefetching hints based on path
+  // pathname is already defined in this scope (const { pathname } = request.nextUrl;)
+
+  if (pathname === '/sign-in' || pathname === '/sign-up' || pathname === '/forgot-password') {
+    finalResponse.headers.set('X-Page-Type', 'auth');
+    finalResponse.headers.set('X-Prefetch-Priority', 'critical');
+  } else if (pathname === '/') {
+    finalResponse.headers.set('X-Page-Type', 'home');
+    finalResponse.headers.set('X-Prefetch-Priority', 'high');
+  } else if (pathname === '/blog') { // Exact match for blog index
+    finalResponse.headers.set('X-Page-Type', 'blog-index');
+    finalResponse.headers.set('X-Prefetch-Priority', 'high');
+  } else if (pathname.startsWith('/blog/')) { // Matches /blog/slug
+    finalResponse.headers.set('X-Page-Type', 'blog-post');
+    finalResponse.headers.set('X-Prefetch-Priority', 'medium');
+  } else {
+    // Check for other top-level dynamic pages /[slug]
+    // These are paths with a single segment that are not '/', '/blog', auth routes, or cms routes.
+    const segments = pathname.split('/').filter(Boolean);
+    if (segments.length === 1 && !pathname.startsWith('/cms')) {
+      finalResponse.headers.set('X-Page-Type', 'dynamic-page');
+      finalResponse.headers.set('X-Prefetch-Priority', 'medium');
+    }
+  }
   return finalResponse;
 }
 

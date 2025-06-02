@@ -42,7 +42,7 @@ export default async function AuthButton() {
               disabled
               className="opacity-75 cursor-none pointer-events-none"
             >
-              <AnimatedLink href="/sign-in">Sign in</AnimatedLink>
+              <AnimatedLink href="/sign-in" priority={true}>Sign in</AnimatedLink>
             </Button>
             <Button
               asChild
@@ -51,7 +51,7 @@ export default async function AuthButton() {
               disabled
               className="opacity-75 cursor-none pointer-events-none"
             >
-              <AnimatedLink href="/sign-up">Sign up</AnimatedLink>
+              <AnimatedLink href="/sign-up" priority={true}>Sign up</AnimatedLink>
             </Button>
           </div>
         </div>
@@ -70,10 +70,10 @@ export default async function AuthButton() {
   ) : (
     <div className="flex gap-2">
       <Button asChild size="sm" variant={"outline"}>
-        <AnimatedLink href="/sign-in">Sign in</AnimatedLink>
+        <AnimatedLink href="/sign-in" priority={true}>Sign in</AnimatedLink>
       </Button>
       <Button asChild size="sm" variant={"default"}>
-        <AnimatedLink href="/sign-up">Sign up</AnimatedLink>
+        <AnimatedLink href="/sign-up" priority={true}>Sign up</AnimatedLink>
       </Button>
     </div>
   );
