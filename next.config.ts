@@ -21,6 +21,13 @@ const nextConfig: NextConfig = {
         : []),
     ],
   },
+experimental: {
+    optimizeCss: true,
+    cssChunking: 'strict',
+  },
+  compiler: {
+    removeConsole: process.env.NODE_ENV === 'production',
+  }
 };
 
 export default nextConfig;

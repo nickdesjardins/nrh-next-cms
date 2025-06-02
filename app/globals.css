@@ -20,7 +20,7 @@
     --muted: 120 25% 95%; /* Very light green-tinted background, like #F0F5F0 */
     --muted-foreground: 120 15% 30%; /* Darker, desaturated green for text on muted backgrounds */
 
-    --accent: 28 79% 52%; /* Warm orange accent, like #E67E22 */
+    --accent: 28 79% 90%; /* Warm orange accent, like #E67E22 */
     --accent-foreground: 0 0% 10%; /* Dark text for good contrast on orange */
 
     --destructive: 0 70% 55%; /* A clear, but not overly harsh red */
