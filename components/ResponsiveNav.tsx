@@ -242,7 +242,7 @@ export default function ResponsiveNav({
         }`}
         role="dialog"
         aria-modal="true"
-        aria-labelledby="mobile-menu-title"
+        aria-label="Mobile navigation menu"
       >
         {/* Menu Content (this part slides with the container above) */}
         <div className="fixed top-16 left-0 h-[calc(100vh-4rem)] w-full max-w-sm bg-background text-foreground shadow-xl p-5 z-50 flex flex-col">
