@@ -134,11 +134,11 @@ export default function ImageBlockEditor({ content, onChange }: ImageBlockEditor
       <div className="mt-1 p-3 border rounded-md bg-muted/30 min-h-[120px] flex flex-col items-center justify-center">
         {isLoadingMediaDetails && <p>Loading image details...</p>}
         {!isLoadingMediaDetails && displayObjectKey ? (
-          <div className="relative group w-full max-w-xs mx-auto">
+          <div className="relative group inline-block">
             <img
               src={`${R2_BASE_URL}/${displayObjectKey}`}
               alt={content.alt_text || "Selected image"}
-              className="rounded-md object-contain max-h-40"
+              className="rounded-md object-contain max-h-40 block"
             />
             <Button
               type="button" variant="destructive" size="icon"
