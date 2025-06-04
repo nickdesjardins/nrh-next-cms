@@ -215,7 +215,7 @@ export default function PostForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className="space-y-6 w-full mx-auto px-6">
       {formMessage && (
         <div
           className={`p-3 rounded-md text-sm ${

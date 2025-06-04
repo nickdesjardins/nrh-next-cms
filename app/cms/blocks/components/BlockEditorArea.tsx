@@ -416,7 +416,7 @@ export default function BlockEditorArea({ parentId, parentType, initialBlocks, l
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full mx-auto px-6">
       <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-lg border dark:border-slate-700">
         <Label htmlFor="add-block-select" className="mb-2 block font-medium">Add New Block</Label>
         <div className="flex gap-2">

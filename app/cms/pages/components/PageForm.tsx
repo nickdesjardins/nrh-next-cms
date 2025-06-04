@@ -108,7 +108,7 @@ export default function PageForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className="space-y-6 w-full mx-auto px-6">
       {/* ... (rest of the form remains the same, but `availableLanguages` is now populated by the prop) ... */}
       {formMessage && (
         <div

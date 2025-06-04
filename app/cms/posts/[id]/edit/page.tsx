@@ -120,8 +120,8 @@ export default async function EditPostPage(props: { params: Promise<{ id: string
     console.log("DEBUG EditPostPage - First block ID:", postWithBlocks.blocks[0].id);
   }
   return (
-    <div className="space-y-8">
-      <div className="flex justify-between items-center flex-wrap gap-4">
+    <div className="space-y-8 w-full mx-auto px-6">
+      <div className="flex justify-between items-center flex-wrap gap-4 w-full">
         <div className="flex items-center gap-3">
             <Button variant="outline" size="icon" aria-label="Back to posts" asChild>
                 <AnimatedLink href="/cms/posts">
@@ -170,7 +170,7 @@ export default async function EditPostPage(props: { params: Promise<{ id: string
 
       <Separator className="my-8" />
 
-      <div>
+      <div className="space-y-6 w-full mx-auto px-6">
         <h2 className="text-xl font-semibold mb-4">Post Content Blocks</h2>
         <BlockEditorArea
           parentId={postWithBlocks.id}

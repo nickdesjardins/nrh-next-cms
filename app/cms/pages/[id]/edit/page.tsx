@@ -71,8 +71,8 @@ export default async function EditPage(props: { params: Promise<{ id: string }> 
   const publicPageUrl = `/${pageWithBlocks.slug}`;
 
   return (
-    <div className="space-y-8">
-      <div className="flex justify-between items-center flex-wrap gap-4">
+    <div className="space-y-8 w-full mx-auto px-6">
+      <div className="flex justify-between items-center flex-wrap gap-4 w-full">
         <div className="flex items-center gap-3">
             <Button variant="outline" size="icon" aria-label="Back to pages" asChild>
                 <AnimatedLink href="/cms/pages">
@@ -122,7 +122,7 @@ export default async function EditPage(props: { params: Promise<{ id: string }> 
 
       <Separator className="my-8" />
 
-      <div>
+      <div className="space-y-6 w-full mx-auto px-6">
         <h2 className="text-xl font-semibold mb-4">Page Content Blocks</h2>
         <BlockEditorArea
           parentId={pageWithBlocks.id}
