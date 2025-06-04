@@ -3,18 +3,20 @@ import type { Config } from "tailwindcss";
 const config = {
   darkMode: ["class"],
   content: [
-    "./pages/**/*.{ts,tsx}",
-    "./components/**/*.{ts,tsx}",
-    "./app/**/*.{ts,tsx}",
-    "./src/**/*.{ts,tsx}",
+    './app/**/*.{js,ts,jsx,tsx,mdx}',
+    './components/**/*.{js,ts,jsx,tsx,mdx}',
+    './context/**/*.{js,ts,jsx,tsx,mdx}',
+    './lib/**/*.{js,ts,jsx,tsx,mdx}',
+    './utils/**/*.{js,ts,jsx,tsx,mdx}',
   ],
   safelist: [
-    "text-primary",
-    "text-secondary",
-    "text-accent",
-    "text-muted",
-    "text-destructive",
-    "text-background",
+    'animate-enter',
+    'animate-leave',
+    'dark',
+    // Add any specific classes that are dynamically generated and might be missed by PurgeCSS.
+    // For example:
+    // 'bg-primary-hover',
+    // 'border-secondary-focus',
   ],
   prefix: "",
   theme: {
@@ -83,6 +85,19 @@ const config = {
     },
   },
   plugins: [require("tailwindcss-animate")],
+  corePlugins: {
+    preflight: false,
+    backdropFilter: false,
+    backdropBlur: false,
+    backdropBrightness: false,
+    backdropContrast: false,
+    backdropGrayscale: false,
+    backdropHueRotate: false,
+    backdropInvert: false,
+    backdropOpacity: false,
+    backdropSaturate: false,
+    backdropSepia: false,
+  }
 } satisfies Config;
 
 export default config;
