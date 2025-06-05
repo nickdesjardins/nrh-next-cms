@@ -48,6 +48,7 @@ It features:
         NEXT_PUBLIC_SUPABASE_URL=[https://your-project-ref.supabase.co](https://your-project-ref.supabase.co)
         NEXT_PUBLIC_SUPABASE_ANON_KEY=your-public-anon-key
         SUPABASE_SERVICE_ROLE_KEY=your-service-role-key # Found in API settings, needed for admin actions like deleting users
+SUPABASE_PROJECT_ID=your-supabase-project-id # Used by the Supabase CLI (e.g., in supabase/config.toml)
 
         # Cloudflare R2 Storage (from your Cloudflare R2 bucket settings & API token)
         NEXT_PUBLIC_R2_BASE_URL=[https://your-r2-public-url.r2.dev/your-bucket-name](https://your-r2-public-url.r2.dev/your-bucket-name) # Or your custom domain for R2
