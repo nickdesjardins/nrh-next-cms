@@ -1,4 +1,4 @@
-# Lighthouse CI Workflow
+# Lighthouse CI Workflow Test
 # This workflow runs Lighthouse CI checks on every push to master and on PRs targeting master.
 name: Lighthouse CI
 
