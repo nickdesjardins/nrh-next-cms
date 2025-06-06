@@ -19,6 +19,7 @@ jobs:
       R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCOUNT_ID }}
       R2_SECRET_ACCESS_KEY: ${{ secrets.R2_ACCOUNT_ID }}
       R2_S3_ENDPOINT: ${{ secrets.R2_ACCOUNT_ID }}
+      NEXT_PUBLIC_R2_BASE_URL: ${{ secrets.NEXT_PUBLIC_R2_BASE_URL }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
