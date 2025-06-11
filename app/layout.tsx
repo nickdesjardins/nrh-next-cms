@@ -5,6 +5,7 @@ import { hasEnvVars } from "@/utils/supabase/check-env-vars";
 import { ThemeProvider } from "next-themes";
 import { AuthProvider } from "@/context/AuthContext";
 import { LanguageProvider } from "@/context/LanguageContext";
+import { createClient as createSupabaseServerClient, getProfileWithRoleServerSide } from '@/utils/supabase/server';
 import { CurrentContentProvider } from "@/context/CurrentContentContext"; // Import CurrentContentProvider
 // import { PageTransitionProvider } from '@/components/transitions/PageTransitionProvider'; // Will be dynamically imported
 // import { ClientOnlyTransitionOrchestrator } from '@/components/transitions/ClientOnlyTransitionOrchestrator'; // Will be dynamically imported
@@ -25,7 +26,6 @@ import "./globals.css";
 import Header from "@/components/Header";
 import FooterNavigation from "@/components/FooterNavigation";
 import { headers, cookies } from 'next/headers';
-import { unstable_noStore } from 'next/cache'; // For testing
 import { DynamicClientSideTransitionWrapper, DynamicThemeSwitcher } from '@/components/DynamicImportsClient';
 
 const defaultUrl = process.env.VERCEL_URL
@@ -47,7 +47,10 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  unstable_noStore(); // Add this for testing to ensure layout is fully dynamic
+
+  const supabase = createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const profile = user ? await getProfileWithRoleServerSide(user.id) : null;
 
   const headerList = await headers();
   const cookieStore = await cookies(); // Await cookies()
@@ -81,7 +84,6 @@ export default async function RootLayout({
       serverDeterminedLocale = DEFAULT_LOCALE_FOR_LAYOUT;
     }
   } catch (error) {
-    console.error("RootLayout: Error fetching languages server-side", error);
     // Fallback to default locale if languages can't be fetched
     serverDeterminedLocale = DEFAULT_LOCALE_FOR_LAYOUT;
   }
@@ -103,7 +105,7 @@ export default async function RootLayout({
         <LoadNonCriticalCss cssPath="/non-critical.css" />
       </head>
       <body className="bg-background text-foreground min-h-screen">
-        <AuthProvider>
+        <AuthProvider serverUser={user} serverProfile={profile}>
           <LanguageProvider
             serverLocale={serverDeterminedLocale}
             initialAvailableLanguages={availableLanguages}
@@ -124,15 +126,12 @@ export default async function RootLayout({
                           {!hasEnvVars ? <EnvVarWarning /> : <Header currentLocale={serverDeterminedLocale} />}
                         </div>
                       </nav>
-                      {/* The DynamicClientSideTransitionWrapper now handles the orchestrator and provider */}
                       <div className="flex flex-col w-full flex-grow">
                         {children}
                       </div>
-
                       <footer className="w-full border-t py-8">
                         <div className="mx-auto flex flex-col items-center justify-center gap-6 text-center text-xs">
                           <FooterNavigation />
-                          
                           <div className="flex flex-row items-center gap-2">
                             <p className="text-muted-foreground">© {new Date().getFullYear()} My Ultra-Fast CMS. All rights reserved.</p>
                             <DynamicThemeSwitcher />

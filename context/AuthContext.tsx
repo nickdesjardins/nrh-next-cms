@@ -6,11 +6,17 @@ import { User } from '@supabase/supabase-js';
 import { createClient as createSupabaseBrowserClient, getProfileWithRoleClientSide } from '@/utils/supabase/client';
 import { Profile, UserRole } from '@/utils/supabase/types';
 
+interface AuthProviderProps {
+  children: ReactNode;
+  serverUser: User | null;
+  serverProfile: Profile | null;
+}
+
 interface AuthContextType {
   user: User | null;
   profile: Profile | null;
   role: UserRole | null;
-  isLoading: boolean; // True during initial auth check, then false
+  isLoading: boolean; 
   isAdmin: boolean;
   isWriter: boolean;
   isUserRole: boolean;
@@ -18,79 +24,54 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  // 1. Initialize Supabase client once and keep it stable
+export const AuthProvider = ({ children, serverUser, serverProfile }: AuthProviderProps) => {
   const [supabase] = useState(() => createSupabaseBrowserClient());
-
-  const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [role, setRole] = useState<UserRole | null>(null);
-  const [isLoading, setIsLoading] = useState(true); // Start as true
+  
+  const [user, setUser] = useState<User | null>(serverUser);
+  const [profile, setProfile] = useState<Profile | null>(serverProfile);
+  const [role, setRole] = useState<UserRole | null>(serverProfile?.role ?? null);
+  const [isLoading, setIsLoading] = useState(false); 
 
   useEffect(() => {
-    // This effect runs once on mount to set up initial auth state and listener
-    setIsLoading(true); // Explicitly set loading true at the start of this effect
+    let isMounted = true;
 
-    // Attempt to get the initial session.
-    // Supabase getSession() is async, so we handle it.
-    // Using getSessionSync() is an option but might not be populated immediately on first load after login.
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      const initialUser = session?.user ?? null;
-      setUser(initialUser);
+    const { data: { subscription: authListener } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (!isMounted) return;
 
-      if (initialUser) {
-        try {
-          const userProfile = await getProfileWithRoleClientSide(initialUser.id);
-          setProfile(userProfile);
-          setRole(userProfile?.role ?? null);
-        } catch (e) {
-          console.error("AuthProvider: Error fetching initial profile", e);
-          setProfile(null);
-          setRole(null);
-        }
-      } else {
-        setProfile(null);
-        setRole(null);
-      }
-      setIsLoading(false); // Initial auth check complete
-    }).catch(e => {
-        console.error("AuthProvider: Error in getSession()", e); // Simplified error message
-        setUser(null);
-        setProfile(null);
-        setRole(null);
-        setIsLoading(false); // Still mark loading as false even on error
-    });
-
-    // Set up the auth state change listener
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        // This listener updates state on auth events (login, logout)
-        // It should NOT toggle isLoading. isLoading is for the *initial* check.
         const currentUser = session?.user ?? null;
         setUser(currentUser);
 
         if (currentUser) {
+          // When auth state changes on the client (e.g. logout),
+          // we may need to re-fetch profile info if a new user signs in.
+          // For a simple logout, this will just result in clearing the profile.
           try {
-            const userProfile = await getProfileWithRoleClientSide(currentUser.id);
-            setProfile(userProfile);
-            setRole(userProfile?.role ?? null);
+            const userProfileData = await getProfileWithRoleClientSide(supabase, currentUser.id);
+            if (isMounted) {
+              setProfile(userProfileData);
+              setRole(userProfileData?.role ?? null);
+            }
           } catch (e) {
             console.error("AuthProvider: Error fetching profile on auth change", e);
-            setProfile(null); // Clear profile on error to avoid stale data
-            setRole(null);
+            if (isMounted) {
+              setProfile(null); setRole(null);
+            }
           }
         } else {
-          setProfile(null);
-          setRole(null);
+          // No user on this event (e.g., SIGNED_OUT), clear profile and role.
+          if (isMounted) {
+            setProfile(null); setRole(null);
+          }
         }
       }
     );
 
     return () => {
-      // Cleanup listener on unmount
-      authListener?.subscription.unsubscribe();
+      isMounted = false;
+      if (authListener) authListener.unsubscribe();
     };
-  }, [supabase]); // Dependency array only contains stable `supabase` client
+  }, [supabase]);
 
   const isAdmin = role === 'ADMIN';
   const isWriter = role === 'WRITER';
@@ -108,7 +89,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   return (
     <AuthContext.Provider value={contextValue}>
-      {/* 3. Always render children. Consumers will use `isLoading` to show their own loaders. */}
       {children}
     </AuthContext.Provider>
   );

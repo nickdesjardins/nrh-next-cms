@@ -100,20 +100,29 @@ export default function CmsLayout({ children }: { children: ReactNode }) {
   }, []);
 
 
+  // With server-side auth data, isLoading is initially false.
+  // We show a spinner only if something client-side sets it to true (e.g., during logout).
   if (isLoading) {
     return <LoadingSpinner />;
   }
 
+  // The useEffect handles redirection if the server-provided user/role is insufficient.
+  // Returning null here prevents rendering the layout for unauthorized users.
   if (!user || (!isWriter && !isAdmin)) {
-    return <LoadingSpinner />;
+    return null;
   }
 
   const getInitials = () => {
-    if (profile?.full_name) return profile.full_name.split(' ').map(n => n[0]).join('').substring(0,2).toUpperCase();
-    if (profile?.username) return profile.username.substring(0,2).toUpperCase();
-    return user?.email?.charAt(0).toUpperCase() || "U";
+    if (profile && profile.full_name) return profile.full_name.split(' ').map(n => n[0]).join('').substring(0,2).toUpperCase();
+    if (profile && profile.username) return profile.username.substring(0,2).toUpperCase();
+    if (user && user.email) return user.email.charAt(0).toUpperCase();
+    return "U"; // Default fallback
   }
-  const getRoleColor = () => isAdmin ? "bg-amber-500" : isWriter ? "bg-emerald-500" : "bg-sky-500";
+  const getRoleColor = () => {
+    if (isAdmin) return "bg-amber-500";
+    if (isWriter) return "bg-emerald-500";
+    return "bg-sky-500"; // Default color
+  }
 
   // pageTitle logic should now work reliably with usePathname
   let pageTitle = "CMS"; // Default title
