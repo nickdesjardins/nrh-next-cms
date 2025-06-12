@@ -44,7 +44,7 @@ export const signInAction = async (formData: FormData) => {
   const password = formData.get("password") as string;
   const supabase = await createClient();
 
-  const { error } = await supabase.auth.signInWithPassword({
+  const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password,
   });
@@ -53,11 +53,19 @@ export const signInAction = async (formData: FormData) => {
     return encodedRedirect("error", "/sign-in", error.message);
   }
 
-  // Redirect to the homepage after successful sign-in
-  // The /auth/callback route is not strictly needed for password sign-in
-  // as the session is established directly. Role-based access to specific
-  // pages like /cms/dashboard will be handled by middleware.
-  return redirect("/");
+  if (data.user) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', data.user.id)
+      .single();
+
+    if (profile && (profile.role === 'ADMIN' || profile.role === 'WRITER')) {
+      return redirect("/post-sign-in?redirect_to=/cms/dashboard");
+    }
+  }
+
+  return redirect("/post-sign-in");
 };
 
 export const forgotPasswordAction = async (formData: FormData) => {
@@ -134,5 +142,5 @@ export const resetPasswordAction = async (formData: FormData) => {
 export const signOutAction = async () => {
   const supabase = await createClient();
   await supabase.auth.signOut();
-  return redirect("/sign-in");
+  return redirect("/");
 };
