@@ -1,4 +1,4 @@
-// components/blocks/renderers/SectionBlockRenderer.tsx
+// components/blocks/renderers/HeroBlockRenderer.tsx
 import React from "react";
 import type { SectionBlockContent } from "@/lib/blocks/blockRegistry";
 import { getBlockDefinition } from "@/lib/blocks/blockRegistry";
@@ -50,6 +50,10 @@ const paddingClasses = {
 function generateBackgroundStyles(background: SectionBlockContent['background']) {
   const styles: React.CSSProperties = {};
   let className = '';
+
+  if (background.min_height) {
+    styles.minHeight = background.min_height;
+  }
 
   switch (background.type) {
     case 'theme':
@@ -130,6 +134,15 @@ const DynamicNestedBlockRenderer: React.FC<{
   ) as React.ComponentType<any>;
 
   // Handle different prop requirements for different renderers
+  if (block.block_type === 'image') {
+    return (
+      <RendererComponent
+        content={block.content}
+        languageId={languageId}
+        priority={true}
+      />
+    );
+  }
   if (block.block_type === 'posts_grid') {
     return (
       <RendererComponent
@@ -148,7 +161,7 @@ const DynamicNestedBlockRenderer: React.FC<{
   );
 };
 
-const SectionBlockRenderer: React.FC<SectionBlockRendererProps> = ({
+const HeroBlockRenderer: React.FC<SectionBlockRendererProps> = ({
   content,
   languageId,
 }) => {
@@ -163,7 +176,7 @@ const SectionBlockRenderer: React.FC<SectionBlockRendererProps> = ({
 
   return (
     <section
-      className={`w-full ${paddingTopClass} ${paddingBottomClass} ${backgroundClassName}`.trim()}
+      className={`w-full flex items-center ${paddingTopClass} ${paddingBottomClass} ${backgroundClassName}`.trim()}
       style={styles}
     >
       <div className={containerClass}>
@@ -185,4 +198,4 @@ const SectionBlockRenderer: React.FC<SectionBlockRendererProps> = ({
   );
 };
 
-export default SectionBlockRenderer;
+export default HeroBlockRenderer;

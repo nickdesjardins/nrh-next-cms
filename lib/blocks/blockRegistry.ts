@@ -109,6 +109,7 @@ export interface SectionBlockContent {
     type: 'none' | 'theme' | 'solid' | 'gradient' | 'image';
     theme?: 'primary' | 'secondary' | 'muted' | 'accent' | 'destructive';
     solid_color?: string;
+    min_height?: string;
     gradient?: {
       type: 'linear' | 'radial';
       direction?: string; // e.g., "to right", "45deg"
@@ -117,11 +118,17 @@ export interface SectionBlockContent {
     image?: {
       media_id: string;
       object_key: string;
-      position: 'center' | 'top' | 'bottom' | 'left' | 'right' | 'cover' | 'contain';
+      width?: number;
+      height?: number;
+      size: 'cover' | 'contain' | 'auto';
+      position: 'center' | 'top' | 'bottom' | 'left' | 'right';
       overlay?: {
-        type: 'none' | 'solid' | 'gradient';
-        color?: string;
-        opacity?: number;
+        type: 'gradient';
+        gradient: {
+          type: 'linear' | 'radial';
+          direction?: string;
+          stops: Array<{ color: string; position: number }>;
+        };
       };
     };
   };
@@ -147,9 +154,15 @@ export interface SectionBlockContent {
 }
 
 /**
+ * Content interface for hero blocks
+ * A specialized version of the section block for page headers
+ */
+export type HeroBlockContent = SectionBlockContent;
+
+/**
  * Available block types - defined here as the source of truth
  */
-export const availableBlockTypes = ["text", "heading", "image", "button", "posts_grid", "video_embed", "section"] as const;
+export const availableBlockTypes = ["text", "heading", "image", "button", "posts_grid", "video_embed", "section", "hero"] as const;
 export type BlockType = (typeof availableBlockTypes)[number];
 
 /**
@@ -641,6 +654,36 @@ export const blockRegistry: Record<BlockType, BlockDefinition> = {
       ],
     },
   },
+hero: {
+    type: "hero",
+    label: "Hero Section",
+    initialContent: {
+      container_type: 'container',
+      background: { type: "none" },
+      responsive_columns: { mobile: 1, tablet: 1, desktop: 2 },
+      column_gap: 'lg',
+      padding: { top: 'xl', bottom: 'xl' },
+      column_blocks: [
+        [
+          { block_type: "heading", content: { level: 1, text_content: "Hero Title" }, temp_id: `block-${Date.now()}-1` },
+          { block_type: "text", content: { html_content: "<p>Hero description goes here. Explain the value proposition.</p>" }, temp_id: `block-${Date.now()}-2` },
+          { block_type: "button", content: { text: "Call to Action", url: "#" }, temp_id: `block-${Date.now()}-3` },
+        ],
+        [],
+      ],
+    } as HeroBlockContent,
+    editorComponentFilename: "SectionBlockEditor.tsx", // Reusing section editor
+    rendererComponentFilename: "HeroBlockRenderer.tsx", // Specific renderer for hero
+    contentSchema: {
+      // The content schema is inherited from SectionBlockContent, so we don't need to redefine it here.
+      // We could add specific validation for the hero block if needed in the future.
+    },
+    documentation: {
+      description: 'A specialized hero section for the top of a page, with prioritized images and pre-populated content.',
+      useCases: ['Main page hero/banner', 'Introductory section with a strong call to action'],
+      notes: ['This block reuses the Section editor but has a different renderer for optimized image loading.'],
+    },
+  },
 };
 
 /**
@@ -716,7 +759,8 @@ export type AllBlockContent =
   | ({ type: "button" } & ButtonBlockContent)
   | ({ type: "posts_grid" } & PostsGridBlockContent)
   | ({ type: "section" } & SectionBlockContent)
-  | ({ type: "video_embed" } & VideoEmbedBlockContent);
+ | ({ type: "hero" } & HeroBlockContent)
+ | ({ type: "video_embed" } & VideoEmbedBlockContent);
 
 /**
  * Validate block content against its schema

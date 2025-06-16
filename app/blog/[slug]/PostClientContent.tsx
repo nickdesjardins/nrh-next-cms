@@ -165,7 +165,7 @@ export default function PostClientContent({ initialPostData, currentSlug, childr
   }
 
   return (
-    <article className="container mx-auto px-4 py-8">
+    <article className="w-full mx-auto">
       {isLoadingTargetLang && <div className="text-center py-2 text-sm text-muted-foreground">Switching language...</div>}
       
       {currentPostData?.feature_image_url && (

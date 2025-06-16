@@ -7,11 +7,13 @@ const R2_BASE_URL = process.env.NEXT_PUBLIC_R2_BASE_URL || "";
 interface ImageBlockRendererProps {
   content: ImageBlockContent;
   languageId: number;
+  priority?: boolean;
 }
 
 const ImageBlockRenderer: React.FC<ImageBlockRendererProps> = ({
   content,
   languageId,
+  priority = false,
 }) => {
   if (!content.media_id || !content.object_key) {
     return (
@@ -51,6 +53,7 @@ const ImageBlockRenderer: React.FC<ImageBlockRendererProps> = ({
           className="rounded-md border"
           placeholder={content.blur_data_url ? "blur" : "empty"}
           blurDataURL={content.blur_data_url || undefined}
+          priority={priority}
         />
         {content.caption && (
           <figcaption className="text-sm text-muted-foreground mt-2">

@@ -99,6 +99,7 @@ export default function EditableBlock({
         case 'video_embed':
           SelectedEditor = DynamicVideoEmbedBlockEditor;
           break;
+        case 'hero':
         case 'section':
           SelectedEditor = DynamicSectionBlockEditor;
           break;
