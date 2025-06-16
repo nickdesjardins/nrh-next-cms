@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient } from '../../utils/supabase/server';
+import { revalidatePath } from 'next/cache';
 import type { PostWithMediaDimensions } from '../../utils/supabase/types'; // Ensure this path is correct
 
 export async function fetchPaginatedPublishedPosts(languageId: number, page: number, limit: number): Promise<{ posts: PostWithMediaDimensions[], totalCount: number, error?: string }> {
@@ -77,4 +78,39 @@ export async function fetchInitialPublishedPosts(languageId: number, limit: numb
   });
  
   return { posts: processedPosts as PostWithMediaDimensions[], totalCount: count || 0, error: null };
+}
+export async function revalidateAndLog(path: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    // Step 1: Revalidate the path
+    revalidatePath(path);
+
+    // Step 2: Log the revalidation by calling the API route
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
+    if (!baseUrl) {
+      throw new Error('NEXT_PUBLIC_BASE_URL is not set in environment variables.');
+    }
+    
+    const logUrl = new URL('/api/revalidate-log', baseUrl);
+
+    const response = await fetch(logUrl.toString(), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ path }),
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.json();
+      throw new Error(`Failed to log revalidation: ${response.status} ${response.statusText} - ${errorBody.error}`);
+    }
+
+    console.log(`Successfully revalidated and logged path: ${path}`);
+    return { success: true };
+
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+    console.error(`Error in revalidateAndLog for path "${path}":`, errorMessage);
+    return { success: false, error: errorMessage };
+  }
 }

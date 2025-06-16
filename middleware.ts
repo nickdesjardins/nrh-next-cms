@@ -192,12 +192,26 @@ export async function middleware(request: NextRequest) {
     finalResponse.headers.set('Content-Security-Policy', csp);
   }
 
+  // Clone the response to log cache headers
+  const responseForLogging = finalResponse.clone();
+  const cacheStatus = responseForLogging.headers.get('x-vercel-cache') || 'none';
+  
+  // Log cache status for non-API routes
+  if (!pathname.startsWith('/api/')) {
+    console.log(JSON.stringify({
+      type: 'cache',
+      status: cacheStatus,
+      path: pathname,
+    }));
+  }
+
   return finalResponse;
 }
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|auth/.*|sign-in|sign-up|forgot-password|unauthorized|api/auth/.*|api/revalidate).*)',
+    // Update the matcher to exclude the new revalidate-log API route
+    '/((?!_next/static|_next/image|favicon.ico|auth/.*|sign-in|sign-up|forgot-password|unauthorized|api/auth/.*|api/revalidate|api/revalidate-log).*)',
     '/cms/:path*',
   ],
 };
