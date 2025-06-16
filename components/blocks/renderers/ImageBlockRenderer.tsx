@@ -54,6 +54,7 @@ const ImageBlockRenderer: React.FC<ImageBlockRendererProps> = ({
           placeholder={content.blur_data_url ? "blur" : "empty"}
           blurDataURL={content.blur_data_url || undefined}
           priority={priority}
+          quality={60}
         />
         {content.caption && (
           <figcaption className="text-sm text-muted-foreground mt-2">
