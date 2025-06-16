@@ -1,8 +1,9 @@
 // components/blocks/renderers/HeroBlockRenderer.tsx
 import React from "react";
-import type { SectionBlockContent } from "@/lib/blocks/blockRegistry";
+import type { SectionBlockContent, Gradient } from "@/lib/blocks/blockRegistry";
 import { getBlockDefinition } from "@/lib/blocks/blockRegistry";
 import dynamic from "next/dynamic";
+import Image from 'next/image';
 
 const R2_BASE_URL = process.env.NEXT_PUBLIC_R2_BASE_URL || "";
 
@@ -107,6 +108,12 @@ function generateBackgroundStyles(background: SectionBlockContent['background'])
   return { styles, className };
 }
 
+function generateGradientString(gradient: Gradient) {
+  const { type, direction, stops } = gradient;
+  const gradientStops = stops.map((stop: { color: string; position: number }) => `${stop.color} ${stop.position}%`).join(', ');
+  return `${type}-gradient(${direction || 'to right'}, ${gradientStops})`;
+}
+
 // Dynamic block renderer component
 const DynamicNestedBlockRenderer: React.FC<{
   block: SectionBlockContent['column_blocks'][0][0];
@@ -167,6 +174,12 @@ const HeroBlockRenderer: React.FC<SectionBlockRendererProps> = ({
 }) => {
   const { styles, className: backgroundClassName } = generateBackgroundStyles(content.background);
   
+  const backgroundImage = content.background.type === 'image' ? content.background.image : undefined;
+  
+  if (backgroundImage) {
+    delete styles.backgroundImage;
+  }
+
   // Build CSS classes
   const containerClass = containerClasses[content.container_type] || containerClasses.container;
   const gridClass = columnClasses[content.responsive_columns.desktop] || columnClasses[3];
@@ -176,10 +189,31 @@ const HeroBlockRenderer: React.FC<SectionBlockRendererProps> = ({
 
   return (
     <section
-      className={`w-full flex items-center ${paddingTopClass} ${paddingBottomClass} ${backgroundClassName}`.trim()}
+      className={`relative w-full flex items-center ${paddingTopClass} ${paddingBottomClass} ${backgroundClassName}`.trim()}
       style={styles}
     >
-      <div className={containerClass}>
+      {backgroundImage && (
+        <Image
+          src={`${R2_BASE_URL}/${backgroundImage.object_key}`}
+          alt={backgroundImage.alt_text || 'Hero background image'}
+          fill
+          style={{
+            objectFit: backgroundImage.size || 'cover',
+            objectPosition: backgroundImage.position || 'center'
+          }}
+          sizes="100vw"
+          priority
+          placeholder={backgroundImage.blur_data_url ? 'blur' : 'empty'}
+          blurDataURL={backgroundImage.blur_data_url}
+        />
+      )}
+      {backgroundImage?.overlay?.gradient && (
+        <div
+          className="absolute inset-0"
+          style={{ background: generateGradientString(backgroundImage.overlay.gradient) }}
+        />
+      )}
+      <div className={`${containerClass} relative`}>
         <div className={`grid ${gridClass} ${gapClass}`}>
           {content.column_blocks.map((columnBlocks, columnIndex) => (
             <div key={`column-${columnIndex}`} className="min-h-0 space-y-4">

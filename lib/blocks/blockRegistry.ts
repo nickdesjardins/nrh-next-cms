@@ -101,6 +101,12 @@ export interface VideoEmbedBlockContent {
  * Content interface for section blocks
  * Provides flexible column layouts with responsive breakpoints and background options
  */
+export interface Gradient {
+  type: 'linear' | 'radial';
+  direction?: string;
+  stops: Array<{ color: string; position: number }>;
+}
+
 export interface SectionBlockContent {
   /** Container width type */
   container_type: 'full-width' | 'container' | 'container-sm' | 'container-lg' | 'container-xl';
@@ -110,25 +116,19 @@ export interface SectionBlockContent {
     theme?: 'primary' | 'secondary' | 'muted' | 'accent' | 'destructive';
     solid_color?: string;
     min_height?: string;
-    gradient?: {
-      type: 'linear' | 'radial';
-      direction?: string; // e.g., "to right", "45deg"
-      stops: Array<{ color: string; position: number }>;
-    };
+    gradient?: Gradient;
     image?: {
       media_id: string;
       object_key: string;
+      alt_text?: string;
       width?: number;
       height?: number;
-      size: 'cover' | 'contain' | 'auto';
+      blur_data_url?: string;
+      size: 'cover' | 'contain';
       position: 'center' | 'top' | 'bottom' | 'left' | 'right';
       overlay?: {
         type: 'gradient';
-        gradient: {
-          type: 'linear' | 'radial';
-          direction?: string;
-          stops: Array<{ color: string; position: number }>;
-        };
+        gradient: Gradient;
       };
     };
   };

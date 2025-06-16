@@ -103,7 +103,10 @@ const PostsGridClient: React.FC<PostsGridClientProps> = ({
                       alt={`Feature image for ${post.title}`}
                       width={post.feature_image_width}
                       height={post.feature_image_height}
+                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                       priority // Consider if all grid images are priority
+                      placeholder={post.blur_data_url ? 'blur' : 'empty'}
+                      blurDataURL={post.blur_data_url ?? undefined}
                       className="h-full object-cover transition-transform duration-300 group-hover:scale-105"
                     />
                   </div>

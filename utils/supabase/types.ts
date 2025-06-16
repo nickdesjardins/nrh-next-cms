@@ -132,6 +132,7 @@ export interface Post {
 export interface PostWithMediaDimensions extends Post {
   feature_image_width?: number | null;
   feature_image_height?: number | null;
+  blur_data_url?: string | null;
 }
 
 export interface Media {
