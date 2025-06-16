@@ -1,8 +1,8 @@
 // context/AuthContext.tsx
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { User } from '@supabase/supabase-js';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import { User, Subscription } from '@supabase/supabase-js';
 import { createClient as createSupabaseBrowserClient, getProfileWithRoleClientSide } from '@/utils/supabase/client';
 import { Profile, UserRole } from '@/utils/supabase/types';
 
@@ -30,48 +30,60 @@ export const AuthProvider = ({ children, serverUser, serverProfile }: AuthProvid
   const [user, setUser] = useState<User | null>(serverUser);
   const [profile, setProfile] = useState<Profile | null>(serverProfile);
   const [role, setRole] = useState<UserRole | null>(serverProfile?.role ?? null);
-  const [isLoading, setIsLoading] = useState(false); 
+  const [isLoading, setIsLoading] = useState(false);
+  const [authSubscription, setAuthSubscription] = useState<Subscription | null>(null);
+
+  const handleAuthStateChange = useCallback(async (event: string, session: any) => {
+    const currentUser = session?.user ?? null;
+    setUser(currentUser);
+
+    if (currentUser) {
+      try {
+        const userProfileData = await getProfileWithRoleClientSide(supabase, currentUser.id);
+        setProfile(userProfileData);
+        setRole(userProfileData?.role ?? null);
+      } catch (e) {
+        console.error("AuthProvider: Error fetching profile on auth change", e);
+        setProfile(null);
+        setRole(null);
+      }
+    } else {
+      setProfile(null);
+      setRole(null);
+    }
+  }, [supabase]);
+
+  const subscribeToAuth = useCallback(() => {
+    if (authSubscription) return; // Already subscribed
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(handleAuthStateChange);
+    setAuthSubscription(subscription);
+  }, [supabase, handleAuthStateChange, authSubscription]);
+
+  const unsubscribeFromAuth = useCallback(() => {
+    if (authSubscription) {
+      authSubscription.unsubscribe();
+      setAuthSubscription(null);
+    }
+  }, [authSubscription]);
 
   useEffect(() => {
-    let isMounted = true;
+    subscribeToAuth(); // Initial subscription
 
-    const { data: { subscription: authListener } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (!isMounted) return;
-
-        const currentUser = session?.user ?? null;
-        setUser(currentUser);
-
-        if (currentUser) {
-          // When auth state changes on the client (e.g. logout),
-          // we may need to re-fetch profile info if a new user signs in.
-          // For a simple logout, this will just result in clearing the profile.
-          try {
-            const userProfileData = await getProfileWithRoleClientSide(supabase, currentUser.id);
-            if (isMounted) {
-              setProfile(userProfileData);
-              setRole(userProfileData?.role ?? null);
-            }
-          } catch (e) {
-            console.error("AuthProvider: Error fetching profile on auth change", e);
-            if (isMounted) {
-              setProfile(null); setRole(null);
-            }
-          }
-        } else {
-          // No user on this event (e.g., SIGNED_OUT), clear profile and role.
-          if (isMounted) {
-            setProfile(null); setRole(null);
-          }
-        }
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        subscribeToAuth();
+      } else {
+        unsubscribeFromAuth();
       }
-    );
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
-      isMounted = false;
-      if (authListener) authListener.unsubscribe();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      unsubscribeFromAuth(); // Cleanup on unmount
     };
-  }, [supabase]);
+  }, [subscribeToAuth, unsubscribeFromAuth]);
 
   const isAdmin = role === 'ADMIN';
   const isWriter = role === 'WRITER';

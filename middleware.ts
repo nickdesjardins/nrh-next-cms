@@ -25,7 +25,10 @@ function getRequiredRolesForPath(pathname: string): UserRole[] | null {
 }
 
 export async function middleware(request: NextRequest) {
+  const nonce = Buffer.from(crypto.randomUUID()).toString('base64');
   const requestHeaders = new Headers(request.headers);
+  requestHeaders.set('x-nonce', nonce);
+
   let response = NextResponse.next({
     request: {
       headers: requestHeaders,
@@ -160,6 +163,23 @@ export async function middleware(request: NextRequest) {
     finalResponse.headers.set('Cache-Control', 'public, max-age=0, must-revalidate');
     finalResponse.headers.set('X-BFCache-Applied', 'true');
   }
+
+  const retrievedNonce = requestHeaders.get('x-nonce');
+  if (retrievedNonce) {
+    const csp = `
+      default-src 'self' *.supabase.co *.r2.dev;
+      script-src 'self' 'nonce-${retrievedNonce}' 'strict-dynamic' *.supabase.co *.r2.dev;
+      style-src 'self' 'unsafe-inline' *.supabase.co *.r2.dev;
+      img-src 'self' data: *.supabase.co *.r2.dev;
+      font-src 'self' *.supabase.co *.r2.dev;
+      connect-src 'self' *.supabase.co *.r2.dev;
+      frame-src 'self' *.supabase.co *.r2.dev;
+    `.replace(/\s{2,}/g, ' ').trim();
+    finalResponse.headers.set('Content-Security-Policy', csp);
+    console.log('CSP:', csp);
+  }
+
+  console.log('Nonce:', retrievedNonce);
   return finalResponse;
 }
 
