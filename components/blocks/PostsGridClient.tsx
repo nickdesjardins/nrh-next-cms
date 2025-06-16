@@ -73,12 +73,27 @@ const PostsGridClient: React.FC<PostsGridClientProps> = ({
 
   const columnClasses: { [key: number]: string } = {
     1: 'grid-cols-1',
-    2: 'md:grid-cols-2',
-    3: 'lg:grid-cols-3', // Default for 3 columns
-    4: 'lg:grid-cols-4', // Example for 4 columns
+    2: 'grid-cols-1 md:grid-cols-2',
+    3: 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3',
+    4: 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4',
   };
   const gridColsClass = columnClasses[columns] || columnClasses[3];
 
+  const getImageSizes = (cols: number): string => {
+    switch (cols) {
+      case 1:
+        return '100vw';
+      case 2:
+        return '(max-width: 767px) 100vw, 50vw';
+      case 4:
+        return '(max-width: 639px) 100vw, (max-width: 767px) 50vw, (max-width: 1023px) 33vw, 25vw';
+      case 3:
+      default:
+        return '(max-width: 767px) 100vw, (max-width: 1023px) 50vw, 33vw';
+    }
+  };
+
+  const imageSizes = getImageSizes(columns);
 
   if (error && !isLoading) { // Only show full error if not also loading (e.g. initial load error after skeletons)
     return <div className="text-red-500 py-10 text-center">Error: {error}</div>;
@@ -92,7 +107,7 @@ const PostsGridClient: React.FC<PostsGridClientProps> = ({
             <PostCardSkeleton key={`skeleton-${index}`} />
           ))
         ) : posts.length > 0 ? (
-          posts.map((post) => (
+          posts.map((post, index) => (
             <AnimatedLink href={`/blog/${post.slug}`} key={post.id} className="block group" prefetchOnHover={true}>
               <div className="border rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow bg-card text-card-foreground">
                 {/* Basic Post Card Structure - Enhanced with Feature Image */}
@@ -103,8 +118,8 @@ const PostsGridClient: React.FC<PostsGridClientProps> = ({
                       alt={`Feature image for ${post.title}`}
                       width={post.feature_image_width}
                       height={post.feature_image_height}
-                      sizes="(max-width: 768px) calc(100vw - 32px), (max-width: 1200px) calc(50vw - 28px), calc(33.33vw - 27px)"
-                      priority // Consider if all grid images are priority
+                      sizes={imageSizes}
+                      priority={index === 0}
                       placeholder={post.blur_data_url ? 'blur' : 'empty'}
                       blurDataURL={post.blur_data_url ?? undefined}
                       quality={60}

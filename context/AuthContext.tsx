@@ -1,7 +1,7 @@
 // context/AuthContext.tsx
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
 import { User, Subscription } from '@supabase/supabase-js';
 import { createClient as createSupabaseBrowserClient, getProfileWithRoleClientSide } from '@/utils/supabase/client';
 import { Profile, UserRole } from '@/utils/supabase/types';
@@ -67,40 +67,62 @@ export const AuthProvider = ({ children, serverUser, serverProfile }: AuthProvid
   }, [authSubscription]);
 
   useEffect(() => {
-    subscribeToAuth(); // Initial subscription
+    subscribeToAuth();
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
+        console.log('[AuthContext] Page visible. Re-subscribing to auth state changes.');
         subscribeToAuth();
       } else {
+        console.log('[AuthContext] Page hidden. Unsubscribing from auth state changes.');
         unsubscribeFromAuth();
       }
     };
 
+    const handlePageHide = (event: PageTransitionEvent) => {
+      if (!event.persisted) {
+        console.log('[AuthContext] pagehide event. Tearing down all real-time connections for bf-cache.');
+        unsubscribeFromAuth(); // This is crucial
+        supabase.removeAllChannels();
+      }
+    };
+
+    const handlePageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) {
+        console.log('[AuthContext] Page restored from bf-cache. Re-subscribing to auth state changes.');
+        subscribeToAuth();
+      }
+    };
+
     document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('pagehide', handlePageHide);
+    window.addEventListener('pageshow', handlePageShow);
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      unsubscribeFromAuth(); // Cleanup on unmount
+      window.removeEventListener('pagehide', handlePageHide);
+      window.removeEventListener('pageshow', handlePageShow);
+      unsubscribeFromAuth();
+      supabase.removeAllChannels();
     };
-  }, [subscribeToAuth, unsubscribeFromAuth]);
+  }, [subscribeToAuth, unsubscribeFromAuth, supabase]);
 
   const isAdmin = role === 'ADMIN';
   const isWriter = role === 'WRITER';
   const isUserRole = role === 'USER';
 
-  const contextValue = React.useMemo(() => ({
+  const value = useMemo(() => ({
     user,
     profile,
     role,
     isLoading,
     isAdmin,
     isWriter,
-    isUserRole
+    isUserRole,
   }), [user, profile, role, isLoading, isAdmin, isWriter, isUserRole]);
 
   return (
-    <AuthContext.Provider value={contextValue}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

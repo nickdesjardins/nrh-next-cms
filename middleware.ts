@@ -25,8 +25,8 @@ function getRequiredRolesForPath(pathname: string): UserRole[] | null {
 }
 
 export async function middleware(request: NextRequest) {
-  const nonce = Buffer.from(crypto.randomUUID()).toString('base64');
   const requestHeaders = new Headers(request.headers);
+  const nonce = crypto.randomUUID();
   requestHeaders.set('x-nonce', nonce);
 
   let response = NextResponse.next({
@@ -164,22 +164,34 @@ export async function middleware(request: NextRequest) {
     finalResponse.headers.set('X-BFCache-Applied', 'true');
   }
 
-  const retrievedNonce = requestHeaders.get('x-nonce');
-  if (retrievedNonce) {
-    const csp = `
-      default-src 'self' *.supabase.co *.r2.dev;
-      script-src 'self' 'nonce-${retrievedNonce}' 'strict-dynamic' *.supabase.co *.r2.dev;
-      style-src 'self' 'unsafe-inline' *.supabase.co *.r2.dev;
-      img-src 'self' data: *.supabase.co *.r2.dev;
-      font-src 'self' *.supabase.co *.r2.dev;
-      connect-src 'self' *.supabase.co *.r2.dev;
-      frame-src 'self' *.supabase.co *.r2.dev;
-    `.replace(/\s{2,}/g, ' ').trim();
+  // Set security headers
+  finalResponse.headers.set('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload');
+  finalResponse.headers.set('X-Frame-Options', 'SAMEORIGIN');
+  finalResponse.headers.set('X-Content-Type-Options', 'nosniff');
+  finalResponse.headers.set('Referrer-Policy', 'origin-when-cross-origin');
+  finalResponse.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  finalResponse.headers.set('Cross-Origin-Opener-Policy', 'same-origin');
+
+  const nonceValue = requestHeaders.get('x-nonce');
+  if (nonceValue) {
+    const csp = [
+      "default-src 'self'",
+      `script-src 'self' 'nonce-${nonceValue}' 'strict-dynamic' ${
+        process.env.NODE_ENV === 'development' ? "'unsafe-eval'" : ''
+      }`,
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: blob: https://pub-a31e3f1a87d144898aeb489a8221f92e.r2.dev",
+      "font-src 'self'",
+      "object-src 'none'",
+      "connect-src 'self' https://ppcppwsfnrptznvbxnsz.supabase.co wss://ppcppwsfnrptznvbxnsz.supabase.co",
+      "frame-src 'self' https://www.youtube.com",
+      "form-action 'self'",
+      "base-uri 'self'",
+    ].join('; ');
+
     finalResponse.headers.set('Content-Security-Policy', csp);
-    console.log('CSP:', csp);
   }
 
-  console.log('Nonce:', retrievedNonce);
   return finalResponse;
 }
 

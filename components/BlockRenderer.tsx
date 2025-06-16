@@ -2,7 +2,8 @@
 import React from "react";
 import dynamic from "next/dynamic";
 import type { Block } from "@/utils/supabase/types";
-import { getBlockDefinition } from "@/lib/blocks/blockRegistry";
+import { getBlockDefinition, type SectionBlockContent } from "@/lib/blocks/blockRegistry";
+import HeroBlockRenderer from "./blocks/renderers/HeroBlockRenderer"; // Static import for LCP
 
 interface BlockRendererProps {
   blocks: Block[];
@@ -14,7 +15,7 @@ interface DynamicBlockRendererProps {
   languageId: number;
 }
 
-// Dynamic renderer component that handles the dynamic import logic
+// Dynamic renderer component that handles the dynamic import logic for non-LCP blocks
 const DynamicBlockRenderer: React.FC<DynamicBlockRendererProps> = ({
   block,
   languageId,
@@ -80,13 +81,26 @@ const BlockRenderer: React.FC<BlockRendererProps> = ({
 
   return (
     <>
-      {blocks.map((block) => (
-        <DynamicBlockRenderer
-          key={block.id}
-          block={block}
-          languageId={languageId}
-        />
-      ))}
+      {blocks.map((block) => {
+        // Statically render the Hero block for LCP optimization
+        if (block.block_type === 'hero') {
+          return (
+            <HeroBlockRenderer
+              key={block.id}
+              content={block.content as SectionBlockContent}
+              languageId={languageId}
+            />
+          );
+        }
+        // Dynamically render all other blocks
+        return (
+          <DynamicBlockRenderer
+            key={block.id}
+            block={block}
+            languageId={languageId}
+          />
+        );
+      })}
     </>
   );
 };
