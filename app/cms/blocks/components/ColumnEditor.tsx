@@ -34,7 +34,7 @@ function SortableColumnBlock({ block, index, columnIndex, onEdit, onDelete, bloc
     transition,
     isDragging,
   } = useSortable({
-    id: block.temp_id || `${blockType}-column-${columnIndex}-block-${index}`,
+    id: `${blockType}-column-${columnIndex}-block-${index}`,
     data: {
       type: 'block',
       blockType,
@@ -210,7 +210,7 @@ export default function ColumnEditor({ columnIndex, blocks, onBlocksChange, bloc
         ) : (
           <div className="space-y-2">
             {blocks.map((block, index) => (
-              <div key={block.temp_id || `${blockType}-column-${columnIndex}-block-${index}`}>
+              <div key={`${blockType}-column-${columnIndex}-block-${index}`}>
                 <SortableColumnBlock
                   block={block}
                   index={index}

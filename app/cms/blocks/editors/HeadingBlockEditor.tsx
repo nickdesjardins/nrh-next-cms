@@ -6,21 +6,17 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { HeadingBlockContent } from "@/lib/blocks/blockRegistry";
+import { BlockEditorProps } from '../components/BlockEditorModal';
 
-interface HeadingBlockEditorProps {
-  content: Partial<HeadingBlockContent>;
-  onChange: (newContent: HeadingBlockContent) => void;
-}
-
-export default function HeadingBlockEditor({ content, onChange }: HeadingBlockEditorProps) {
+export default function HeadingBlockEditor({ content, onChange }: BlockEditorProps<Partial<HeadingBlockContent>>) {
   const idPrefix = React.useId();
 
   const handleTextChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    onChange({ ...content, text_content: event.target.value } as HeadingBlockContent);
+    onChange({ ...content, text_content: event.target.value });
   };
 
   const handleLevelChange = (value: string) => {
-    onChange({ ...content, level: parseInt(value, 10) as HeadingBlockContent['level'] } as HeadingBlockContent);
+    onChange({ ...content, level: parseInt(value, 10) as HeadingBlockContent['level'] });
   };
 
   const textAlignOptions = ['left', 'center', 'right', 'justify'] as const;
@@ -35,12 +31,12 @@ export default function HeadingBlockEditor({ content, onChange }: HeadingBlockEd
   ] as const;
 
   const handleTextAlignChange = (value: string) => {
-    onChange({ ...content, textAlign: value as HeadingBlockContent['textAlign'] } as HeadingBlockContent);
+    onChange({ ...content, textAlign: value as HeadingBlockContent['textAlign'] });
   };
 
   const handleTextColorChange = (value: string) => {
     const newTextColor = value === "" ? undefined : value as HeadingBlockContent['textColor'];
-    onChange({ ...content, textColor: newTextColor } as HeadingBlockContent);
+    onChange({ ...content, textColor: newTextColor });
   };
 
   return (

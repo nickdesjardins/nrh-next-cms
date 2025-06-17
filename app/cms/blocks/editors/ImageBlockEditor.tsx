@@ -12,15 +12,11 @@ import { ImageIcon, CheckCircle, Search, X as XIcon } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import MediaUploadForm from '@/app/cms/media/components/MediaUploadForm'; // Import the upload form
 import { Separator } from '@/components/ui/separator'; // For visual separation
+import { BlockEditorProps } from '../components/BlockEditorModal';
 
 const R2_BASE_URL = process.env.NEXT_PUBLIC_R2_BASE_URL || "";
 
-interface ImageBlockEditorProps {
-  content: Partial<ImageBlockContent>;
-  onChange: (newContent: ImageBlockContent) => void;
-}
-
-export default function ImageBlockEditor({ content, onChange }: ImageBlockEditorProps) {
+export default function ImageBlockEditor({ content, onChange }: BlockEditorProps<Partial<ImageBlockContent>>) {
   const [selectedMediaObjectKey, setSelectedMediaObjectKey] = useState<string | null | undefined>(content.object_key);
   const [isLoadingMediaDetails, setIsLoadingMediaDetails] = useState(false); // For fetching details if only ID is present
 

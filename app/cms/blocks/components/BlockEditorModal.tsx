@@ -23,6 +23,7 @@ export type Block<T = any> = {
 
 // Props that every block editor component must accept.
 export type BlockEditorProps<T = any> = {
+  block: Block<T>;
   content: T;
   onChange: (newContent: T) => void;
 };
@@ -72,7 +73,11 @@ export function BlockEditorModal({
         </DialogHeader>
         <div className="py-4 flex-grow flex flex-col">
           <Suspense fallback={<div className="flex justify-center items-center h-32">Loading editor...</div>}>
-            <EditorComponent content={tempContent} onChange={setTempContent} />
+            <EditorComponent
+              block={block}
+              content={tempContent}
+              onChange={setTempContent}
+            />
           </Suspense>
         </div>
         <DialogFooter>

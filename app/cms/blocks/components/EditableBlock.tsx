@@ -77,8 +77,8 @@ export default function EditableBlock({
   const isSection = block?.block_type === 'section' || block?.block_type === 'hero';
 
   const handleEditClick = () => {
-    if (isSection) {
-      setIsConfigPanelOpen(!isConfigPanelOpen);
+    if (block.block_type === 'section' || block.block_type === 'hero') {
+      setIsConfigPanelOpen(prev => !prev);
     } else {
       const editorFilename = blockRegistry[block.block_type]?.editorComponentFilename;
       if (block.block_type === 'posts_grid') {

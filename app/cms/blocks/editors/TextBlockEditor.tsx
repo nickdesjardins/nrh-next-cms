@@ -5,13 +5,9 @@ import React from 'react'; // Ensure React is imported for JSX
 import { Label } from "@/components/ui/label";
 import type { TextBlockContent } from "@/utils/supabase/types";
 import RichTextEditor from "../components/RichTextEditor"; // Import the new Tiptap editor
+import { BlockEditorProps } from '../components/BlockEditorModal';
 
-interface TextBlockEditorProps {
-  content: Partial<TextBlockContent>;
-  onChange: (newContent: TextBlockContent) => void;
-}
-
-export default function TextBlockEditor({ content, onChange }: TextBlockEditorProps) {
+export default function TextBlockEditor({ content, onChange }: BlockEditorProps<Partial<TextBlockContent>>) {
   const handleContentChange = (htmlString: string) => {
     onChange({ html_content: htmlString });
   };

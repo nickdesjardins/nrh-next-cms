@@ -5,13 +5,9 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { generateDefaultContent, VideoEmbedBlockContent } from "@/lib/blocks/blockRegistry";
+import { BlockEditorProps } from '../components/BlockEditorModal';
 
-interface VideoEmbedBlockEditorProps {
-  content: Partial<VideoEmbedBlockContent>;
-  onChange: (newContent: VideoEmbedBlockContent) => void;
-}
-
-export default function VideoEmbedBlockEditor({ content, onChange }: VideoEmbedBlockEditorProps) {
+export default function VideoEmbedBlockEditor({ content, onChange }: BlockEditorProps<Partial<VideoEmbedBlockContent>>) {
   // Get default content from registry
   const defaultContent = generateDefaultContent("video_embed") as VideoEmbedBlockContent;
   

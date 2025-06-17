@@ -73,17 +73,19 @@ import {
 
 interface SectionBlockEditorProps {
   content: Partial<SectionBlockContent>;
-  onChange: (newContent: SectionBlockContent) => void;
-  blockType?: "section" | "hero";
-  isConfigPanelOpen?: boolean;
+  onChange: (newContent: any) => void;
+  block: any;
+  isConfigPanelOpen: boolean;
+  blockType: 'section' | 'hero';
 }
 
 export default function SectionBlockEditor({
   content,
   onChange,
-  blockType = "section",
   isConfigPanelOpen,
+  blockType,
 }: SectionBlockEditorProps) {
+
   const processedContent = useMemo((): SectionBlockContent => {
     const defaults: SectionBlockContent = {
       container_type: "container",

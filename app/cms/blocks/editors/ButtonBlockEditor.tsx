@@ -6,22 +6,18 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { ButtonBlockContent } from "@/utils/supabase/types";
-
-interface ButtonBlockEditorProps {
-  content: Partial<ButtonBlockContent>;
-  onChange: (newContent: ButtonBlockContent) => void;
-}
+import { BlockEditorProps } from '../components/BlockEditorModal';
 
 const buttonVariants: ButtonBlockContent['variant'][] = ['default', 'outline', 'secondary', 'ghost', 'link'];
 const buttonSizes: ButtonBlockContent['size'][] = ['default', 'sm', 'lg'];
 
 
-export default function ButtonBlockEditor({ content, onChange }: ButtonBlockEditorProps) {
+export default function ButtonBlockEditor({ content, onChange }: BlockEditorProps<Partial<ButtonBlockContent>>) {
 
   const handleChange = (field: keyof ButtonBlockContent, value: string) => {
     // Ensure that when variant or size is cleared, it's set to undefined or a valid default, not an empty string if your type doesn't allow it.
     // However, the Select component's onValueChange will provide valid values from the list or an empty string if placeholder is re-selected (which shouldn't happen here).
-    onChange({ ...content, [field]: value } as ButtonBlockContent);
+    onChange({ ...content, [field]: value });
   };
 
   return (
