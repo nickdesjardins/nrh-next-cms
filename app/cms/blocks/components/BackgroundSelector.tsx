@@ -24,7 +24,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ImageIcon, CheckCircle, Search, X as XIcon } from "lucide-react";
+import {
+  ImageIcon,
+  CheckCircle,
+  Search,
+  X as XIcon,
+  Save,
+} from "lucide-react";
 import { createClient as createBrowserClient } from "@/utils/supabase/client";
 import type { SectionBlockContent } from "@/lib/blocks/blockRegistry";
 import type { Media } from "@/utils/supabase/types";
@@ -32,6 +38,7 @@ import MediaUploadForm from "@/app/cms/media/components/MediaUploadForm";
 import { TooltipProvider } from "@radix-ui/react-tooltip";
 import { CustomSelectWithInput } from "@/components/ui/CustomSelectWithInput";
 import { ColorPicker } from "@/components/ui/ColorPicker";
+import { cn } from "@/lib/utils";
 
 const R2_BASE_URL = process.env.NEXT_PUBLIC_R2_BASE_URL || "";
 
@@ -54,6 +61,12 @@ export default function BackgroundSelector({
   const selectedImage =
     background?.type === "image" ? background.image : undefined;
   const [minHeight, setMinHeight] = useState(background?.min_height || "");
+  const [imagePosition, setImagePosition] = useState<string>(
+    selectedImage?.position || "center"
+  );
+  const [overlayDirection, setOverlayDirection] = useState(
+    selectedImage?.overlay?.gradient?.direction || "to bottom"
+  );
 
   const generateGradientCss = (gradient: any) => {
     if (!gradient || !gradient.stops || gradient.stops.length === 0) {
@@ -96,6 +109,13 @@ export default function BackgroundSelector({
   useEffect(() => {
     setMinHeight(background?.min_height || "");
   }, [background?.min_height]);
+
+  useEffect(() => {
+    setImagePosition(selectedImage?.position || "center");
+    setOverlayDirection(
+      selectedImage?.overlay?.gradient?.direction || "to bottom"
+    );
+  }, [selectedImage?.position, selectedImage?.overlay?.gradient?.direction]);
 
   const handleTypeChange = (
     type: SectionBlockContent["background"]["type"]
@@ -297,6 +317,22 @@ export default function BackgroundSelector({
     });
   };
 
+  const sizeToClass: { [key: string]: string } = {
+    cover: "object-cover",
+    contain: "object-contain",
+    stretch: "object-fill",
+    auto: "object-scale-down",
+  };
+  const imageSizeClass =
+    sizeToClass[selectedImage?.size || "cover"] || "object-cover";
+
+  const hasMinHeightChanged = minHeight !== (background?.min_height || "");
+  const hasImagePositionChanged =
+    imagePosition !== (selectedImage?.position || "center");
+  const hasOverlayDirectionChanged =
+    overlayDirection !==
+    (selectedImage?.overlay?.gradient?.direction || "to bottom");
+
   return (
     <TooltipProvider>
       <div className="space-y-3">
@@ -335,8 +371,15 @@ export default function BackgroundSelector({
                         target: { name: "min_height", value: minHeight },
                       } as React.ChangeEvent<HTMLInputElement>)
                     }
+                    disabled={!hasMinHeightChanged}
+                    title="Save Minimum Height"
                   >
-                    <CheckCircle className="h-5 w-5 text-green-600" />
+                    <Save
+                      className={cn(
+                        "h-5 w-5",
+                        hasMinHeightChanged && "text-green-600"
+                      )}
+                    />
                   </Button>
                 </div>
             </div>
@@ -360,7 +403,7 @@ export default function BackgroundSelector({
                     width={selectedImage.width || 500}
                     height={selectedImage.height || 300}
                     sizes="100vw"
-                    className="w-full h-full object-cover"
+                    className={`w-full h-full ${imageSizeClass}`}
                     style={{ objectPosition: selectedImage.position }}
                   />
                   {selectedImage.overlay && (
@@ -508,26 +551,43 @@ export default function BackgroundSelector({
                   </SelectContent>
                 </Select>
               </div>
-              <div>
-                <CustomSelectWithInput
-                  label="Image Position"
-                  tooltipContent="Select a preset or enter a custom value like 'center top' or '25% 75%'. See MDN's object-position docs for more options."
-                  value={selectedImage?.position || "center"}
-                  onChange={(value: string) =>
-                    handleImagePropertyChange("position", value)
+              <div className="flex items-center gap-2">
+                <div className="flex-grow">
+                  <CustomSelectWithInput
+                    label="Image Position"
+                    tooltipContent="Select a preset or enter a custom value like 'center top' or '25% 75%'. See MDN's object-position docs for more options."
+                    value={imagePosition}
+                    onChange={setImagePosition}
+                    options={[
+                      { value: "center", label: "Center" },
+                      { value: "top", label: "Top" },
+                      { value: "bottom", label: "Bottom" },
+                      { value: "left", label: "Left" },
+                      { value: "right", label: "Right" },
+                      { value: "left top", label: "Left Top" },
+                      { value: "left bottom", label: "Left Bottom" },
+                      { value: "right top", label: "Right Top" },
+                      { value: "right bottom", label: "Right Bottom" },
+                    ]}
+                  />
+                </div>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={() =>
+                    handleImagePropertyChange("position", imagePosition)
                   }
-                  options={[
-                    { value: "center", label: "Center" },
-                    { value: "top", label: "Top" },
-                    { value: "bottom", label: "Bottom" },
-                    { value: "left", label: "Left" },
-                    { value: "right", label: "Right" },
-                    { value: "left top", label: "Left Top" },
-                    { value: "left bottom", label: "Left Bottom" },
-                    { value: "right top", label: "Right Top" },
-                    { value: "right bottom", label: "Right Bottom" },
-                  ]}
-                />
+                  disabled={!hasImagePositionChanged}
+                  title="Save Image Position"
+                >
+                  <br />
+                  <Save
+                    className={cn(
+                      "h-5 w-5 mt-[1.3rem]",
+                      hasImagePositionChanged && "text-green-600"
+                    )}
+                  />
+                </Button>
               </div>
             </div>
 
@@ -551,27 +611,41 @@ export default function BackgroundSelector({
 
             {selectedImage?.overlay && (
               <div className="mt-3 p-3 border rounded-md bg-muted/30 space-y-4">
-                <div>
-                  <CustomSelectWithInput
-                    label="Direction"
-                    tooltipContent="Select a preset or enter a custom angle like '45deg' or 'to top left'. See MDN's linear-gradient docs for more options."
-                    value={
-                      selectedImage.overlay.gradient?.direction || "to bottom"
-                    }
-                    onChange={(value: string) =>
+                <div className="flex items-center gap-2">
+                  <div className="flex-grow">
+                    <CustomSelectWithInput
+                      label="Direction"
+                      tooltipContent="Select a preset or enter a custom angle like '45deg' or 'to top left'. See MDN's linear-gradient docs for more options."
+                      value={overlayDirection}
+                      onChange={setOverlayDirection}
+                      options={[
+                        { value: "to bottom", label: "To Bottom" },
+                        { value: "to top", label: "To Top" },
+                        { value: "to left", label: "To Left" },
+                        { value: "to right", label: "To Right" },
+                        { value: "to bottom right", label: "To Bottom Right" },
+                        { value: "to top left", label: "To Top Left" },
+                      ]}
+                    />
+                  </div>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() =>
                       handleOverlayGradientChange({
-                        target: { name: "direction", value },
+                        target: { name: "direction", value: overlayDirection },
                       } as React.ChangeEvent<HTMLInputElement>)
                     }
-                    options={[
-                      { value: "to bottom", label: "To Bottom" },
-                      { value: "to top", label: "To Top" },
-                      { value: "to left", label: "To Left" },
-                      { value: "to right", label: "To Right" },
-                      { value: "to bottom right", label: "To Bottom Right" },
-                      { value: "to top left", label: "To Top Left" },
-                    ]}
-                  />
+                    disabled={!hasOverlayDirectionChanged}
+                    title="Save Overlay Direction"
+                  >
+                    <Save
+                      className={cn(
+                        "h-5 w-5 mt-[1.3rem]",
+                        hasOverlayDirectionChanged && "text-green-600"
+                      )}
+                    />
+                  </Button>
                 </div>
                 <div className="flex items-center gap-4">
                   <ColorPicker
