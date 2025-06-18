@@ -19,6 +19,7 @@ export interface EditableBlockProps {
   onContentChange: (blockId: number, newContent: any) => void;
   dragHandleProps?: any;
   onEditNestedBlock?: (parentBlockId: string, columnIndex: number, blockIndexInColumn: number) => void;
+  className?: string;
 }
 
 export default function EditableBlock({
@@ -27,6 +28,7 @@ export default function EditableBlock({
   onContentChange,
   dragHandleProps,
   onEditNestedBlock,
+  className,
 }: EditableBlockProps) {
   // Add a guard for undefined block prop
   if (!block) {
@@ -115,7 +117,8 @@ export default function EditableBlock({
   return (
     <div
       className={cn(
-        "p-4 border rounded-lg bg-card shadow"
+        "p-4 border rounded-lg bg-card shadow",
+        className
       )}
     >
       <div className="flex justify-between items-center mb-2 pb-2 border-b">

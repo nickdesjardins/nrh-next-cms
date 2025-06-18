@@ -39,6 +39,8 @@ import {
   useSensor,
   useSensors,
   DragEndEvent,
+  DragOverlay,
+  DragStartEvent,
 } from "@dnd-kit/core";
 import {
   arrayMove,
@@ -47,6 +49,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { SortableBlockItem } from "./SortableBlockItem";
+import EditableBlock from "./EditableBlock";
 
 interface BlockEditorAreaProps {
   parentId: number;
@@ -74,6 +77,7 @@ export default function BlockEditorArea({ parentId, parentType, initialBlocks, l
   const [isPending, startTransition] = useTransition();
   const [isSavingNested, startSavingNestedTransition] = useTransition();
   const [selectedBlockTypeToAdd, setSelectedBlockTypeToAdd] = useState<BlockType | "">("");
+  const [activeBlock, setActiveBlock] = useState<Block | null>(null);
   const [editingNestedBlockInfo, setEditingNestedBlockInfo] = useState<EditingNestedBlockInfo | null>(null);
   const [NestedBlockEditorComponent, setNestedBlockEditorComponent] = useState<ComponentType<any> | null>(null);
   const [tempNestedBlockContent, setTempNestedBlockContent] = useState<any>(null);
@@ -263,8 +267,16 @@ export default function BlockEditorArea({ parentId, parentType, initialBlocks, l
     });
   };
 
+  function handleDragStart(event: DragStartEvent) {
+    const { active } = event;
+    const activeBlock = blocks.find(b => b.id === active.id) || null;
+    setActiveBlock(activeBlock);
+  }
+
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
+
+    setActiveBlock(null);
 
     if (over && active.id !== over.id) {
       const originalBlocks = [...blocks];
@@ -358,7 +370,7 @@ export default function BlockEditorArea({ parentId, parentType, initialBlocks, l
         <p className="text-muted-foreground text-center py-4">No blocks yet. Add one above to get started!</p>
       )}
 
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         <SortableContext items={blocks.map(b => b.id)} strategy={verticalListSortingStrategy}>
           <div>
             {blocks.map((block) => (
@@ -368,7 +380,7 @@ export default function BlockEditorArea({ parentId, parentType, initialBlocks, l
                 onContentChange={handleContentChange}
                 onDelete={async (blockIdToDelete) => {
                     startTransition(async () => {
-                        const result = await import("@/app/cms/blocks/actions").then(({ deleteBlock }) => 
+                        const result = await import("@/app/cms/blocks/actions").then(({ deleteBlock }) =>
                             deleteBlock(blockIdToDelete, parentType === "page" ? parentId : null, parentType === "post" ? parentId : null)
                         );
                         if (result && result.success) {
@@ -385,6 +397,18 @@ export default function BlockEditorArea({ parentId, parentType, initialBlocks, l
             ))}
           </div>
         </SortableContext>
+        <DragOverlay>
+            {activeBlock ? (
+                <div className="bg-white shadow-lg rounded-md">
+                    <EditableBlock
+                        block={activeBlock}
+                        className="h-full"
+                        onDelete={() => {}}
+                        onContentChange={() => {}}
+                    />
+                </div>
+            ) : null}
+        </DragOverlay>
       </DndContext>
 
       {editingNestedBlockInfo && (
