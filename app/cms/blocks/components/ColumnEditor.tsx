@@ -2,6 +2,7 @@
 "use client";
 
 import React, { useState, lazy } from 'react';
+import { cn } from '../../../../lib/utils';
 import { Button } from '../../../../components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../../components/ui/select';
 import { PlusCircle, Trash2, Edit2, GripVertical } from "lucide-react";
@@ -23,9 +24,10 @@ interface SortableColumnBlockProps {
   onEdit: () => void;
   onDelete: () => void;
   blockType: 'section' | 'hero';
+  onClick: (e: React.MouseEvent<HTMLDivElement>) => void;
 }
 
-function SortableColumnBlock({ block, index, columnIndex, onEdit, onDelete, blockType }: SortableColumnBlockProps) {
+function SortableColumnBlock({ block, index, columnIndex, onEdit, onDelete, blockType, onClick }: SortableColumnBlockProps) {
   const {
     attributes,
     listeners,
@@ -57,7 +59,11 @@ function SortableColumnBlock({ block, index, columnIndex, onEdit, onDelete, bloc
     <div
       ref={setNodeRef}
       style={style}
-      className="group relative p-2 border border-gray-200 dark:border-gray-700 rounded bg-white dark:bg-gray-900 shadow-sm"
+      onClick={onClick}
+      className={cn(
+        "group relative p-2 border border-gray-200 dark:border-gray-700 rounded bg-white dark:bg-gray-900 shadow-sm",
+        "cursor-pointer hover:border-primary"
+      )}
     >
       <div className="flex items-center justify-between mb-1">
         <div className="flex items-center gap-2">
@@ -135,6 +141,15 @@ export default function ColumnEditor({ columnIndex, blocks, onBlocksChange, bloc
     };
     onBlocksChange([...blocks, newBlock]);
     setSelectedBlockType("");
+  };
+
+  const handleCardClick = (e: React.MouseEvent<HTMLDivElement>, block: ColumnBlock, index: number) => {
+    // Ignore clicks on buttons to prevent conflicts with drag/delete/edit icons.
+    if ((e.target as HTMLElement).closest('button')) {
+      return;
+    }
+    // Call the existing function to open the modal for this block.
+    handleStartEdit(block, index);
   };
 
   const handleDeleteBlock = (index: number) => {
@@ -218,6 +233,7 @@ export default function ColumnEditor({ columnIndex, blocks, onBlocksChange, bloc
                   blockType={blockType}
                   onEdit={() => handleStartEdit(block, index)}
                   onDelete={() => handleDeleteBlock(index)}
+                  onClick={(e) => handleCardClick(e, block, index)}
                 />
               </div>
             ))}
