@@ -84,6 +84,7 @@ export async function recordMediaUpload(payload: {
     uploader_id: user.id,
     file_name: payload.fileName, // Keep original file name for reference
     object_key: primaryVariant.objectKey, // Key of the primary display version
+    file_path: primaryVariant.objectKey,
     // file_url is removed as it's not in the Media type; URLs are in variants
     file_type: primaryVariant.fileType,
     size_bytes: primaryVariant.sizeBytes,
